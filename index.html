@@ -64,70 +64,108 @@
     </div>
   </header>
 
-  <!-- Tabs -->
-  <div class="tabs-wrapper">
-    <div class="tabs">
-      <button class="tab active" data-tab="study">
-        Lista de estudo
-        <span class="tab-badge" id="study-badge">0</span>
-      </button>
-      <button class="tab" data-tab="ideas">
-        Ideias
-        <span class="tab-badge" id="ideas-badge">0</span>
-      </button>
-    </div>
-  </div>
-
-  <!-- Painel: Lista de estudo -->
-  <div id="panel-study" class="panel">
-    <div class="form-card">
-      <form id="study-form" class="form-inner">
-        <div class="form-row">
-          <input type="text" id="study-title" placeholder="Nome do tema" maxlength="120" autocomplete="off" />
-          <button type="submit" class="btn-primary btn-add">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            Adicionar
+  <div class="layout">
+    <div class="main-col">
+      <!-- Tabs -->
+      <div class="tabs-wrapper">
+        <div class="tabs">
+          <button class="tab active" data-tab="study">
+            Lista de estudo
+            <span class="tab-badge" id="study-badge">0</span>
+          </button>
+          <button class="tab" data-tab="ideas">
+            Ideias
+            <span class="tab-badge" id="ideas-badge">0</span>
           </button>
         </div>
-      </form>
+      </div>
+
+      <!-- Painel: Lista de estudo -->
+      <div id="panel-study" class="panel">
+        <div class="form-card">
+          <form id="study-form" class="form-inner">
+            <div class="form-row">
+              <input type="text" id="study-title" placeholder="Nome do tema" maxlength="120" autocomplete="off" />
+              <button type="submit" class="btn-primary btn-add">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Adicionar
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <div class="list-meta">
+          <span class="list-label">Temas</span>
+          <span class="list-stats"><strong id="study-total">0</strong> total · <strong id="study-done">0</strong> estudados</span>
+        </div>
+
+        <ul id="study-list" class="topic-list"></ul>
+        <div id="study-empty" class="empty-state">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+          Nenhum tema ainda.
+        </div>
+      </div>
+
+      <!-- Painel: Ideias -->
+      <div id="panel-ideas" class="panel" style="display:none;">
+        <div class="form-card">
+          <form id="ideas-form" class="form-inner">
+            <div class="form-row">
+              <input type="text" id="ideas-title" placeholder="Nome do tema" maxlength="120" autocomplete="off" />
+              <button type="submit" class="btn-primary btn-add">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Adicionar
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <div class="list-meta">
+          <span class="list-label">Ideias</span>
+          <span class="list-stats"><strong id="ideas-total">0</strong> total</span>
+        </div>
+
+        <ul id="ideas-list" class="topic-list"></ul>
+        <div id="ideas-empty" class="empty-state">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          Nenhuma ideia ainda.
+        </div>
+      </div>
     </div>
 
-    <div class="list-meta">
-      <span class="list-label">Temas</span>
-      <span class="list-stats"><strong id="study-total">0</strong> total · <strong id="study-done">0</strong> estudados</span>
-    </div>
+    <!-- Painel lateral: Anotações -->
+    <aside class="notes-panel" id="notes-panel">
+      <div class="notes-panel-header">
+        <h2>Anotações</h2>
+        <button id="new-note-btn" type="button" class="btn-notes-new">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Nova
+        </button>
+      </div>
 
-    <ul id="study-list" class="topic-list"></ul>
-    <div id="study-empty" class="empty-state">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
-      Nenhum tema ainda.
-    </div>
-  </div>
+      <div id="notes-dropzone" class="notes-dropzone">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v12H8l-4 4V4z"/></svg>
+        <p>Arraste um tema aqui para ver ou escrever anotações sobre ele</p>
+      </div>
 
-  <!-- Painel: Ideias -->
-  <div id="panel-ideas" class="panel" style="display:none;">
-    <div class="form-card">
-      <form id="ideas-form" class="form-inner">
-        <div class="form-row">
-          <input type="text" id="ideas-title" placeholder="Nome do tema" maxlength="120" autocomplete="off" />
-          <button type="submit" class="btn-primary btn-add">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            Adicionar
+      <div id="notes-editor" class="notes-editor" style="display:none;">
+        <div class="notes-editor-header">
+          <span id="notes-editor-badge" class="notes-editor-badge"></span>
+          <input type="text" id="notes-editor-title" class="notes-editor-title-input" placeholder="Título da anotação" maxlength="120" autocomplete="off" style="display:none;" />
+          <button id="notes-editor-close" type="button" class="btn-icon notes-editor-close" aria-label="Fechar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
           </button>
         </div>
-      </form>
-    </div>
+        <textarea id="notes-editor-textarea" class="notes-editor-textarea" placeholder="Escreva sua anotação aqui..."></textarea>
+        <span class="notes-editor-status" id="notes-editor-status"></span>
+      </div>
 
-    <div class="list-meta">
-      <span class="list-label">Ideias</span>
-      <span class="list-stats"><strong id="ideas-total">0</strong> total</span>
-    </div>
-
-    <ul id="ideas-list" class="topic-list"></ul>
-    <div id="ideas-empty" class="empty-state">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-      Nenhuma ideia ainda.
-    </div>
+      <div class="notes-recent" id="notes-recent">
+        <span class="list-label">Com anotações</span>
+        <ul id="notes-recent-list" class="notes-recent-list"></ul>
+        <p id="notes-recent-empty" class="notes-recent-empty">Nenhuma anotação ainda.</p>
+      </div>
+    </aside>
   </div>
 
   <script type="module" src="app.js"></script>
