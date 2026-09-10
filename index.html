@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Estudos</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+</head>
+<body>
+
+  <!-- Modal: nome do usuário -->
+  <div id="name-modal" class="modal-overlay" style="display:none;">
+    <div class="modal">
+      <h2>Olá! Como você se chama?</h2>
+      <p>Seu nome vai aparecer nos temas que você adicionar.</p>
+      <form id="name-form">
+        <input type="text" id="name-input" placeholder="Seu nome" maxlength="40" autocomplete="off" />
+        <button type="submit" class="btn-primary">Entrar</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: editar título -->
+  <div id="edit-modal" class="modal-overlay" style="display:none;">
+    <div class="modal">
+      <h2>Editar tema</h2>
+      <form id="edit-form">
+        <label class="field-label">Nome do tema</label>
+        <input type="text" id="edit-title" maxlength="120" autocomplete="off" />
+        <div class="modal-actions">
+          <button type="button" id="edit-cancel" class="btn-ghost">Cancelar</button>
+          <button type="submit" class="btn-primary">Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: adicionar link -->
+  <div id="link-modal" class="modal-overlay" style="display:none;">
+    <div class="modal">
+      <h2>Adicionar link</h2>
+      <form id="link-form">
+        <label class="field-label">Descrição <span class="field-optional">(opcional)</span></label>
+        <input type="text" id="link-label" placeholder="Ex: Artigo da Sentinela" maxlength="80" autocomplete="off" />
+        <label class="field-label">URL</label>
+        <input type="url" id="link-url" placeholder="https://..." autocomplete="off" />
+        <div class="modal-actions">
+          <button type="button" id="link-cancel" class="btn-ghost">Cancelar</button>
+          <button type="submit" class="btn-primary">Adicionar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <header>
+    <div class="header-top">
+      <h1>Estudos <span>pessoais</span></h1>
+      <div class="user-badge">
+        <span id="user-name-display"></span>
+        <button id="change-name-btn">trocar</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Tabs -->
+  <div class="tabs-wrapper">
+    <div class="tabs">
+      <button class="tab active" data-tab="study">
+        Lista de estudo
+        <span class="tab-badge" id="study-badge">0</span>
+      </button>
+      <button class="tab" data-tab="ideas">
+        Ideias
+        <span class="tab-badge" id="ideas-badge">0</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Painel: Lista de estudo -->
+  <div id="panel-study" class="panel">
+    <div class="form-card">
+      <form id="study-form" class="form-inner">
+        <div class="form-row">
+          <input type="text" id="study-title" placeholder="Nome do tema" maxlength="120" autocomplete="off" />
+          <button type="submit" class="btn-primary btn-add">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Adicionar
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <div class="list-meta">
+      <span class="list-label">Temas</span>
+      <span class="list-stats"><strong id="study-total">0</strong> total · <strong id="study-done">0</strong> estudados</span>
+    </div>
+
+    <ul id="study-list" class="topic-list"></ul>
+    <div id="study-empty" class="empty-state">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+      Nenhum tema ainda.
+    </div>
+  </div>
+
+  <!-- Painel: Ideias -->
+  <div id="panel-ideas" class="panel" style="display:none;">
+    <div class="form-card">
+      <form id="ideas-form" class="form-inner">
+        <div class="form-row">
+          <input type="text" id="ideas-title" placeholder="Nome do tema" maxlength="120" autocomplete="off" />
+          <button type="submit" class="btn-primary btn-add">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Adicionar
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <div class="list-meta">
+      <span class="list-label">Ideias</span>
+      <span class="list-stats"><strong id="ideas-total">0</strong> total</span>
+    </div>
+
+    <ul id="ideas-list" class="topic-list"></ul>
+    <div id="ideas-empty" class="empty-state">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      Nenhuma ideia ainda.
+    </div>
+  </div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
