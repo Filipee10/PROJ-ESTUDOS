@@ -15,11 +15,23 @@ import {
 
 // ─── Pessoas ─────────────────────────────────────────────────────────────────
 const PEOPLE = { filipe: "Filipe", isabelle: "Isabelle" };
+// Nomes de exibição para qualquer "espaço" (inclui o Grupo, que não é uma pessoa que loga).
+const SPACE_LABELS = { filipe: "Filipe", isabelle: "Isabelle", grupo: "Grupo" };
 const DEFAULT_COLORS = { filipe: "#4da3ff", isabelle: "#ff6fae" };
 function ownerOf(t) { return (t && t.owner) || "filipe"; } // docs antigos, sem dono, caem no Filipe
 
+// No Grupo, quem assina é sempre quem está logado (Filipe ou Isabelle) —
+// nos espaços individuais, mantém o comportamento de sempre (assina o dono do espaço).
+function addedByLabel() {
+  return activePerson === "grupo" ? (PEOPLE[currentUser] || "Anônimo") : (PEOPLE[activePerson] || "Anônimo");
+}
+
 // Filipe é o admin: além do próprio espaço, também enxerga e edita o da Isabelle.
-function canEdit(personId) { return personId === currentUser || currentUser === "filipe"; }
+// O espaço "grupo" é compartilhado: os dois sempre podem editar.
+function canEdit(personId) {
+  if (personId === "grupo") return true;
+  return personId === currentUser || currentUser === "filipe";
+}
 
 // hash simples (djb2) só para não deixar o PIN em texto puro no banco.
 // não é criptografia forte — serve para uso pessoal, não para dados sensíveis.
@@ -257,17 +269,21 @@ function setActivePerson(personId) {
   personTabBtns.forEach((b) => b.classList.toggle("active", b.dataset.person === personId));
   utilityTabBtns.forEach((b) => b.classList.remove("active"));
   document.body.classList.toggle("viewing-isabelle", personId === "isabelle");
+  document.body.classList.toggle("viewing-grupo", personId === "grupo");
 
   panelSearch.style.display   = "none";
   panelSettings.style.display = "none";
   panelStudy.style.display    = "flex";
 
-  const isSelf = personId === currentUser;
   const isOwn  = canEdit(personId);
+  // O Grupo é compartilhado — nunca é "somente leitura" nem precisa do banner.
+  const isSelf = personId === currentUser || personId === "grupo";
   readonlyBanner.style.display = isSelf ? "none" : "flex";
-  readonlyBannerText.textContent = isOwn
-    ? `Você está vendo o espaço de ${PEOPLE[personId]} (acesso de administrador).`
-    : `Você está vendo o espaço de ${PEOPLE[personId]} — somente leitura.`;
+  if (!isSelf) {
+    readonlyBannerText.textContent = isOwn
+      ? `Você está vendo o espaço de ${PEOPLE[personId]} (acesso de administrador).`
+      : `Você está vendo o espaço de ${PEOPLE[personId]} — somente leitura.`;
+  }
   studyFormCard.style.display = isOwn ? "" : "none";
   newNoteBtn.style.display    = isOwn ? "" : "none";
   notesPanel.style.display    = notesUIEnabled() ? "" : "none";
@@ -496,14 +512,29 @@ settingsNotesToggle.addEventListener("change", async () => {
   catch (err) { console.error("Erro ao salvar preferência de anotações:", err); }
 });
 
-// ─── Pesquisa (atalho para o jw.org) ────────────────────────────────────────────
+// ─── Pesquisa (atalhos para sites oficiais) ─────────────────────────────────────
+// Cada site tem sua própria busca "de verdade" (confirmada olhando o form de busca
+// de cada um) — a pessoa digita uma vez e escolhe em qual site quer ver o resultado.
+const SEARCH_SITES = {
+  jw:  (term) => `https://www.jw.org/pt/busca/?q=${encodeURIComponent(term)}`,
+  wol: (term) => `https://wol.jw.org/pt/wol/qt/r5/lp-t?q=${encodeURIComponent(term)}`
+};
+
+function openSearch(site) {
+  const term = searchInput.value.trim();
+  if (!term) { searchInput.focus(); return; }
+  const build = SEARCH_SITES[site];
+  if (!build) return;
+  window.open(build(term), "_blank", "noopener,noreferrer");
+}
+
 searchForm.addEventListener("submit", (e) => {
   e.preventDefault();
-  const term = searchInput.value.trim();
-  if (!term) return;
-  const url = `https://www.jw.org/pt/busca/?q=${encodeURIComponent(term)}`;
-  window.open(url, "_blank", "noopener,noreferrer");
-  searchInput.value = "";
+  openSearch("jw");
+});
+
+document.querySelectorAll(".search-dest-btn").forEach((btn) => {
+  btn.addEventListener("click", () => openSearch(btn.dataset.site));
 });
 
 // ─── Painel de anotações (lateral) ─────────────────────────────────────────────
@@ -655,7 +686,7 @@ async function saveActiveNote() {
         const ref = await addDoc(notesRef, {
           title, content,
           owner:     activePerson,
-          addedBy:   PEOPLE[activePerson] || "Anônimo",
+          addedBy:   addedByLabel(),
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp()
         });
@@ -812,7 +843,7 @@ function lockedOverlayHtml(topic) {
   return `
     <div class="locked-overlay">
       ${svgLock(true)}
-      <span class="locked-label">Trancado por ${escapeHtml(PEOPLE[ownerOf(topic)])}</span>
+      <span class="locked-label">Trancado por ${escapeHtml(SPACE_LABELS[ownerOf(topic)])}</span>
       <span class="locked-sublabel">Conteúdo protegido</span>
       <button type="button" class="btn-unlock">Desbloquear</button>
     </div>`;
@@ -852,7 +883,9 @@ function renderStudyItem(topic, isOwn, showNotesUI) {
   const allDone  = isAllChecked(topic);
   const links    = topic.links || [];
   const hasNotes = hasNotesContent(topic.notes);
-  const locked   = !!topic.locked;
+  // Grupo é compartilhado — trancar não faz sentido lá (os dois sempre têm acesso).
+  const isGroupSpace = activePerson === "grupo";
+  const locked   = !isGroupSpace && !!topic.locked;
   const showLocked = locked && !isOwn && !isUnlocked("study", topic.id);
 
   const li       = document.createElement("li");
@@ -869,9 +902,10 @@ function renderStudyItem(topic, isOwn, showNotesUI) {
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           Link
         </button>
+        ${!isGroupSpace ? `
         <button class="btn-icon btn-lock${locked ? " is-locked" : ""}" aria-label="${locked ? "Destrancar" : "Trancar"} tema">
           ${svgLock(locked)}
-        </button>
+        </button>` : ""}
         <button class="btn-icon edit-btn" aria-label="Editar">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
@@ -900,7 +934,7 @@ function renderStudyItem(topic, isOwn, showNotesUI) {
       </div>
       <div class="topic-header-info">
         <span class="topic-title">${escapeHtml(topic.title)}</span>
-        <span class="topic-author">por ${escapeHtml(topic.addedBy || PEOPLE[ownerOf(topic)])}</span>
+        <span class="topic-author">por ${escapeHtml(topic.addedBy || SPACE_LABELS[ownerOf(topic)])}</span>
       </div>
       <div class="topic-header-actions">${actionsHtml}</div>
     </div>
@@ -989,7 +1023,7 @@ studyForm.addEventListener("submit", async (e) => {
       links:     [],
       owner:     activePerson,
       locked:    false,
-      addedBy:   PEOPLE[activePerson] || "Anônimo",
+      addedBy:   addedByLabel(),
       createdAt: serverTimestamp()
     });
     studyTitleInput.value = "";
@@ -1054,6 +1088,34 @@ document.addEventListener("touchend", (e) => {
   if (moved > 16 || elapsed > 600) return; // foi um arrasto/rolagem, não um toque
   maybeSpawnHeart(touch.clientX, touch.clientY);
 }, { passive: true, capture: true });
+
+// ─── Modal: foto (abre ao clicar no coraçãozinho do rodapé) ──────────────────
+const photoModal         = document.getElementById("photo-modal");
+const photoModalClose    = document.getElementById("photo-modal-close");
+const photoModalImg      = document.getElementById("photo-modal-img");
+const photoModalFallback = document.getElementById("photo-modal-fallback");
+const pageHeartSignature = document.getElementById("page-heart-signature");
+
+function showPhotoFallback() {
+  photoModalImg.style.display = "none";
+  photoModalFallback.style.display = "block";
+}
+
+function openPhotoModal() {
+  photoModal.style.display = "flex";
+  // A imagem começa a carregar assim que o HTML é lido (antes do módulo rodar),
+  // então se ela já falhou antes do "error" abaixo estar escutando, checa aqui.
+  if (photoModalImg.complete && photoModalImg.naturalWidth === 0) showPhotoFallback();
+}
+function closePhotoModal() { photoModal.style.display = "none"; }
+
+pageHeartSignature.addEventListener("click", openPhotoModal);
+pageHeartSignature.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openPhotoModal(); }
+});
+photoModalClose.addEventListener("click", closePhotoModal);
+photoModal.addEventListener("click", (e) => { if (e.target === photoModal) closePhotoModal(); });
+photoModalImg.addEventListener("error", showPhotoFallback);
 
 // ─── Utilitários ──────────────────────────────────────────────────────────────
 function escapeHtml(str) {

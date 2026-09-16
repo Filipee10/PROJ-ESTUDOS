@@ -27,12 +27,14 @@
      cada um está sendo visualizado. */
   --filipe-accent:   #4da3ff;
   --isabelle-accent: #ff6fae;
+  --grupo-accent:    #9b6bff;
 
   /* Qual das duas cores acima está guiando a paleta agora. */
   --active-accent: var(--filipe-accent);
 }
 
 body.viewing-isabelle { --active-accent: var(--isabelle-accent); }
+body.viewing-grupo    { --active-accent: var(--grupo-accent); }
 
 /* Tudo abaixo deriva de --active-accent com color-mix() — trocar a aba
    de pessoa (ou a cor que cada um escolheu) já recolore o app inteiro:
@@ -128,6 +130,7 @@ header h1 span { color: var(--blue); }
 
 .person-tab {
   flex: 1;
+  min-width: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -141,6 +144,7 @@ header h1 span { color: var(--blue); }
   padding: 11px 12px;
   border-radius: var(--radius);
   cursor: pointer;
+  overflow-wrap: anywhere;
   transition: color .15s, border-color .15s, background .15s;
 }
 
@@ -168,6 +172,13 @@ header h1 span { color: var(--blue); }
   background: color-mix(in srgb, var(--isabelle-accent) 8%, transparent);
 }
 .person-tab-isabelle.active .person-tab-dot { background: var(--isabelle-accent); }
+
+.person-tab-grupo.active {
+  color: var(--grupo-accent);
+  border-color: color-mix(in srgb, var(--grupo-accent) 78%, black);
+  background: color-mix(in srgb, var(--grupo-accent) 8%, transparent);
+}
+.person-tab-grupo.active .person-tab-dot { background: var(--grupo-accent); }
 
 .person-tab-utility {
   flex: 0 0 auto;
@@ -972,6 +983,49 @@ header h1 span { color: var(--blue); }
 
 .btn-ghost:hover { color: var(--text); border-color: var(--border-hover); }
 
+/* ── Pesquisa: destinos ─────────────────────────────────── */
+.search-destinations {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+}
+
+.search-dest-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 16px;
+  min-width: 84px;
+  cursor: pointer;
+  font-family: inherit;
+  color: var(--text-muted);
+  transition: border-color .15s, color .15s, background .15s;
+  -webkit-appearance: none;
+}
+.search-dest-btn:hover { border-color: var(--blue-dim); color: var(--text); background: var(--blue-bg); }
+
+.search-dest-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: .02em;
+  color: #fff;
+}
+.search-dest-icon-jw  { background: #1a3c8f; }
+.search-dest-icon-wol { background: #6a3fc7; }
+
+.search-dest-name { font-size: 0.76rem; font-weight: 600; }
+
 /* ── Configurações ──────────────────────────────────────── */
 .settings-section {
   background: var(--surface);
@@ -1111,6 +1165,7 @@ header h1 span { color: var(--blue); }
   opacity: .16;
   transition: opacity .2s;
   user-select: none;
+  cursor: pointer;
 }
 
 .page-heart-signature:hover { opacity: .4; }
@@ -1128,6 +1183,54 @@ header h1 span { color: var(--blue); }
   font-weight: 800;
   letter-spacing: .01em;
   color: #fff;
+}
+
+/* ── Modal: foto ────────────────────────────────────────── */
+.photo-modal-overlay { z-index: 200; }
+
+.photo-modal {
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 10px;
+  max-width: 420px;
+  width: 100%;
+  box-shadow: var(--shadow);
+  animation: modal-in .18s ease;
+}
+
+.photo-modal img {
+  width: 100%;
+  border-radius: 10px;
+  display: block;
+}
+
+.photo-modal-close {
+  position: absolute;
+  top: -12px;
+  right: -12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+}
+.photo-modal-close:hover { border-color: var(--border-hover); }
+
+.photo-modal-fallback {
+  padding: 24px 10px;
+  text-align: center;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+.photo-modal-fallback code {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-size: 0.78rem;
 }
 
 /* ── Scrollbar ────────────────────────────────────────── */
@@ -1150,6 +1253,11 @@ header h1 span { color: var(--blue); }
 @media (max-width: 480px) {
   body { padding: 20px 12px 80px; }
   header h1 { font-size: 1.25rem; }
+
+  .person-tabs { gap: 5px; }
+  .person-tab { padding: 10px 6px; font-size: 0.8rem; gap: 4px; }
+  .person-tab-utility { padding: 10px 9px; }
+  .person-tab-utility svg { width: 16px; height: 16px; }
 
   .topic-header { padding: 11px 12px; gap: 8px; }
   .topic-header-actions { gap: 2px; }
