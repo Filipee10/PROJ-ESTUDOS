@@ -119,6 +119,7 @@ const settingsColorReset   = document.getElementById("settings-color-reset");
 const settingsNotesToggle  = document.getElementById("settings-notes-toggle");
 const settingsMusicToggle  = document.getElementById("settings-music-toggle");
 const settingsMusicVolume  = document.getElementById("settings-music-volume");
+const settingsGroupsSection = document.getElementById("settings-groups-section");
 const settingsGroupsList   = document.getElementById("settings-groups-list");
 const settingsAddGroupBtn  = document.getElementById("settings-add-group-btn");
 const settingsAdminSection = document.getElementById("settings-admin-section");
@@ -285,6 +286,7 @@ function completeLogin(personId) {
   // usa currentUser) — sem refazer isso aqui, trocar de pessoa sem recarregar
   // a página deixaria as abas de grupo da sessão anterior penduradas.
   renderGroupTabs();
+  refreshAddGroupBtnVisibility();
   setActivePerson(activePerson);
 }
 
@@ -541,6 +543,7 @@ onSnapshot(peopleRef, (snapshot) => {
   applyAccentColors();
   refreshActiveAccent();
   renderGroupTabs(); // ser (ou deixar de ser) admin muda quais grupos aparecem
+  refreshAddGroupBtnVisibility();
   if (currentView && currentView !== "search" && currentView !== "settings") {
     notesPanel.style.display = notesUIEnabled() ? "" : "none";
     renderStudyList();
@@ -560,7 +563,7 @@ onSnapshot(groupsRef, (snapshot) => {
     renderStudyList();
     renderNotesRecent();
   }
-  if (currentView === "settings") renderSettingsGroups();
+  if (currentView === "settings" && isAdmin(currentUser)) renderSettingsGroups();
 });
 
 function populateSettingsForm() {
@@ -572,8 +575,14 @@ function populateSettingsForm() {
   settingsNotesToggle.checked = notesUIEnabled();
   settingsMusicToggle.checked = musicEnabled();
   settingsMusicVolume.value = musicVolume();
-  renderSettingsGroups();
+  // Criar/gerenciar grupo mexe na estrutura do app pros dois — só admin faz.
+  settingsGroupsSection.style.display = isAdmin(currentUser) ? "" : "none";
+  if (isAdmin(currentUser)) renderSettingsGroups();
   renderSettingsAdmin();
+}
+
+function refreshAddGroupBtnVisibility() {
+  addGroupBtn.style.display = isAdmin(currentUser) ? "" : "none";
 }
 
 // Só aparece pra quem é administrador — mostra as outras pessoas (Filipe e
@@ -726,6 +735,8 @@ settingsMusicVolume.addEventListener("input", () => {
 const GROUP_COLOR_PALETTE = ["#9b6bff", "#2dd4bf", "#f59e0b", "#22c55e", "#38bdf8", "#eab308", "#ec4899", "#a3e635"];
 
 function openGroupModal() {
+  // Defesa extra além de esconder o botão: só admin cria grupo.
+  if (!isAdmin(currentUser)) return;
   groupNameInput.value = "";
   groupFormError.textContent = "";
   groupMembersPicker.querySelectorAll("input").forEach((i) => { i.checked = i.value === currentUser; });
@@ -743,6 +754,7 @@ groupModal.addEventListener("click", (e) => { if (e.target === groupModal) close
 groupForm.addEventListener("submit", async (e) => {
   e.preventDefault();
   groupFormError.textContent = "";
+  if (!isAdmin(currentUser)) { groupFormError.textContent = "Só administradores criam grupos."; return; }
   const name = groupNameInput.value.trim();
   if (!name) { groupFormError.textContent = "Dê um nome pro grupo."; return; }
   const members = [...groupMembersPicker.querySelectorAll("input:checked")].map((i) => i.value);
@@ -997,12 +1009,15 @@ notesPanel.addEventListener("drop", (e) => {
 function renderNotesRecent() {
   const items = [];
   const isOwnActive = canEdit(activePerson);
+  const isSharedSpace = activePerson !== "filipe" && activePerson !== "isabelle";
 
   if (isOwnActive) {
     standaloneNotesCache.forEach((n) => {
       if ((n.owner || "filipe") !== activePerson) return;
       if (!hasNotesContent(n.content) && !hasNotesContent(n.title)) return;
-      items.push({ kind: "standalone", id: n.id, title: n.title || "Sem título", preview: n.content || "" });
+      // Num grupo, só admin apaga anotação avulsa de outra pessoa.
+      const canDelete = !isSharedSpace || isAdmin(currentUser) || n.addedBy === PEOPLE[currentUser];
+      items.push({ kind: "standalone", id: n.id, title: n.title || "Sem título", preview: n.content || "", canDelete });
     });
   }
 
@@ -1033,7 +1048,7 @@ function renderNotesRecent() {
     li.innerHTML = `
       <div class="notes-recent-row">
         <span class="title">${escapeHtml(item.title)}</span>
-        ${item.kind === "standalone" ? `
+        ${item.kind === "standalone" && item.canDelete ? `
         <button class="btn-icon notes-recent-delete" aria-label="Remover anotação">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6M9 6V4h6v2"/></svg>
         </button>` : ""}
@@ -1110,7 +1125,7 @@ function lockedOverlayHtml(topic) {
     </div>`;
 }
 
-function linksListHtml(links, editable, showNotesUI) {
+function linksListHtml(links, editable, showNotesUI, canDelete) {
   if (links.length === 0) return editable ? `<p class="no-links">Nenhum link ainda. Clique em "+ Link" para adicionar.</p>` : "";
   return `
     <ul class="link-list">
@@ -1129,7 +1144,7 @@ function linksListHtml(links, editable, showNotesUI) {
           <button class="btn-icon link-note${hasNotesContent(link.notes) ? " has-notes" : ""}" data-idx="${idx}" aria-label="Anotação do link">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v12H8l-4 4V4z"/></svg>
           </button>` : ""}
-          ${editable ? `
+          ${editable && canDelete ? `
           <button class="btn-icon link-delete" data-idx="${idx}" aria-label="Remover link">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
@@ -1149,6 +1164,9 @@ function renderStudyItem(topic, isOwn, showNotesUI) {
   const isSharedSpace = activePerson !== "filipe" && activePerson !== "isabelle";
   const locked   = !isSharedSpace && !!topic.locked;
   const showLocked = locked && !isOwn && !isUnlocked("study", topic.id);
+  // Num grupo, apagar o que OUTRA pessoa adicionou é coisa de admin — cada um
+  // pode apagar o que é seu, e continua podendo editar/marcar o resto normalmente.
+  const canDelete = !isSharedSpace || isAdmin(currentUser) || topic.addedBy === PEOPLE[currentUser];
 
   const li       = document.createElement("li");
   li.className   = "topic-item" + (allDone ? " checked" : "") + (showLocked ? " locked-card" : "");
@@ -1174,13 +1192,14 @@ function renderStudyItem(topic, isOwn, showNotesUI) {
             <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
           </svg>
         </button>
+        ${canDelete ? `
         <button class="btn-icon delete-btn" aria-label="Remover">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="3 6 5 6 21 6"/>
             <path d="M19 6l-1 14H6L5 6"/>
             <path d="M10 11v6M14 11v6M9 6V4h6v2"/>
           </svg>
-        </button>
+        </button>` : ""}
   ` : (hasNotes && showNotesUI ? `
         <button class="btn-notes has-notes" aria-label="Anotações">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v12H8l-4 4V4z"/></svg>
@@ -1200,7 +1219,7 @@ function renderStudyItem(topic, isOwn, showNotesUI) {
       </div>
       <div class="topic-header-actions">${actionsHtml}</div>
     </div>
-    ${linksListHtml(links, isOwn, showNotesUI)}
+    ${linksListHtml(links, isOwn, showNotesUI, canDelete)}
   `;
 
   li.innerHTML = showLocked
