@@ -855,15 +855,13 @@ studyForm.addEventListener("submit", async (e) => {
   finally { btn.disabled = false; }
 });
 
-// ─── Coraçãozinho de clique ────────────────────────────────────────────────────
-// Por enquanto aparece pra quem estiver logado (Filipe ou Isabelle) — o Filipe,
-// como admin, pediu para ver tudo por ora; dá pra restringir de novo depois.
-//
-// Usa Pointer Events (funciona igual pra mouse e toque) em vez de "click":
-// no celular, um simples "click" no documento às vezes não dispara de forma
-// confiável (ex: ao tocar em áreas sem elemento interativo). Aqui a gente
-// mede o próprio toque — do dedo encostar até soltar — e só considera "toque"
-// (e não um arrasto ou rolagem da página) se o dedo não se moveu muito.
+// ─── Coraçãozinho de clique (só na aba/espaço da Isabelle) ────────────────────
+// Usa "touchstart"/"touchend" (os eventos clássicos de toque, os mais
+// consistentes entre navegadores de celular) em vez de Pointer Events —
+// que em alguns celulares não completam de forma confiável quando o toque
+// é numa área sem elemento interativo. "click" continua ativo também, para
+// mouse/trackpad; um pequeno cronômetro evita duplicar o coração caso os
+// dois disparem para a mesma interação.
 function spawnClickHeart(x, y) {
   const heart = document.createElement("div");
   heart.className = "click-heart";
@@ -877,20 +875,42 @@ function spawnClickHeart(x, y) {
   heart.addEventListener("animationend", () => heart.remove());
 }
 
+let lastHeartAt = 0;
+
+function maybeSpawnHeart(x, y) {
+  if (activePerson !== "isabelle") return;
+  const now = Date.now();
+  if (now - lastHeartAt < 150) return; // já veio um toque/click pra essa mesma interação
+  lastHeartAt = now;
+  spawnClickHeart(x, y);
+}
+
+// Fase de "captura" (o 3º argumento "true"): sem isso, tocar no próprio botão
+// da aba "Isabelle" trocava de aba primeiro (o próprio botão tem seu clique)
+// e só depois chegava aqui — nesse momento activePerson já tinha mudado, e
+// nascia um coração perdido em cima do botão. Capturando antes, a checagem
+// usa o estado de ANTES do toque, que é o correto.
+document.addEventListener("click", (e) => maybeSpawnHeart(e.clientX, e.clientY), true);
+
 let heartTouchStart = null;
 
-document.addEventListener("pointerdown", (e) => {
-  heartTouchStart = { x: e.clientX, y: e.clientY, t: Date.now() };
-});
+document.addEventListener("touchstart", (e) => {
+  const touch = e.touches[0];
+  if (!touch) return;
+  heartTouchStart = { x: touch.clientX, y: touch.clientY, t: Date.now() };
+}, { passive: true, capture: true });
 
-document.addEventListener("pointerup", (e) => {
-  if (!currentUser || !heartTouchStart) return;
-  const moved   = Math.hypot(e.clientX - heartTouchStart.x, e.clientY - heartTouchStart.y);
-  const elapsed = Date.now() - heartTouchStart.t;
+document.addEventListener("touchend", (e) => {
+  if (!heartTouchStart) return;
+  const touch = e.changedTouches[0];
+  const { x, y, t } = heartTouchStart;
   heartTouchStart = null;
-  if (moved > 12 || elapsed > 600) return; // foi um arrasto/rolagem, não um toque
-  spawnClickHeart(e.clientX, e.clientY);
-});
+  if (!touch) return;
+  const moved   = Math.hypot(touch.clientX - x, touch.clientY - y);
+  const elapsed = Date.now() - t;
+  if (moved > 16 || elapsed > 600) return; // foi um arrasto/rolagem, não um toque
+  maybeSpawnHeart(touch.clientX, touch.clientY);
+}, { passive: true, capture: true });
 
 // ─── Utilitários ──────────────────────────────────────────────────────────────
 function escapeHtml(str) {

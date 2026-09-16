@@ -977,7 +977,7 @@ header h1 span { color: var(--blue); }
   display: flex;
   align-items: center;
   justify-content: center;
-  padding-top: 3px;
+  transform: translateY(-1px);
   font-size: 10px;
   font-weight: 800;
   letter-spacing: .01em;
@@ -1012,7 +1012,7 @@ header h1 span { color: var(--blue); }
   display: flex;
   align-items: center;
   justify-content: center;
-  padding-top: 2px;
+  transform: translateY(-1px);
   font-size: 7px;
   font-weight: 800;
   letter-spacing: .01em;
