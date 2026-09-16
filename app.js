@@ -15,14 +15,13 @@ import {
 
 // ─── Pessoas ─────────────────────────────────────────────────────────────────
 const PEOPLE = { filipe: "Filipe", isabelle: "Isabelle" };
-// Nomes de exibição para qualquer "espaço" (inclui o Grupo, que não é uma pessoa que loga).
-const SPACE_LABELS = { filipe: "Filipe", isabelle: "Isabelle", grupo: "Grupo" };
+// Nomes de exibição para qualquer "espaço" (uma pessoa, ou — via groupsCache — um grupo criado).
+const SPACE_LABELS = { filipe: "Filipe", isabelle: "Isabelle" };
 const DEFAULT_COLORS = { filipe: "#4da3ff", isabelle: "#ff6fae" };
 function ownerOf(t) { return (t && t.owner) || "filipe"; } // docs antigos, sem dono, caem no Filipe
 
-// Em qualquer espaço compartilhado (Grupo ou um grupo criado por vocês),
-// quem assina é sempre quem está logado — nos espaços individuais, mantém
-// o comportamento de sempre (assina o dono do espaço).
+// Num grupo (espaço compartilhado), quem assina é sempre quem está logado —
+// nos espaços individuais, mantém o comportamento de sempre (assina o dono do espaço).
 function addedByLabel() {
   if (activePerson === "filipe" || activePerson === "isabelle") return PEOPLE[activePerson] || "Anônimo";
   return PEOPLE[currentUser] || "Anônimo";
@@ -38,11 +37,9 @@ function isAdmin(personId) {
 }
 
 // Um administrador enxerga e edita o espaço de qualquer pessoa e qualquer
-// grupo. O espaço "grupo" é compartilhado: os dois sempre podem editar.
-// Um grupo criado nas Configurações só pode ser editado por quem está na
-// lista de participantes dele (e, como sempre, por um administrador).
+// grupo. Um grupo só pode ser editado por quem está na lista de
+// participantes dele (e, como sempre, por um administrador).
 function canEdit(personId) {
-  if (personId === "grupo") return true;
   if (personId === "filipe" || personId === "isabelle") return personId === currentUser || isAdmin(currentUser);
   return isAdmin(currentUser) || !!groupsCache[personId]?.members?.includes(currentUser);
 }
@@ -120,8 +117,8 @@ const settingsPinSuccess   = document.getElementById("settings-pin-success");
 const settingsColorInput   = document.getElementById("settings-color-input");
 const settingsColorReset   = document.getElementById("settings-color-reset");
 const settingsNotesToggle  = document.getElementById("settings-notes-toggle");
-const settingsGrupoToggle  = document.getElementById("settings-grupo-toggle");
 const settingsMusicToggle  = document.getElementById("settings-music-toggle");
+const settingsMusicVolume  = document.getElementById("settings-music-volume");
 const settingsGroupsList   = document.getElementById("settings-groups-list");
 const settingsAddGroupBtn  = document.getElementById("settings-add-group-btn");
 const settingsAdminSection = document.getElementById("settings-admin-section");
@@ -288,7 +285,6 @@ function completeLogin(personId) {
   // usa currentUser) — sem refazer isso aqui, trocar de pessoa sem recarregar
   // a página deixaria as abas de grupo da sessão anterior penduradas.
   renderGroupTabs();
-  refreshGrupoTabVisibility();
   setActivePerson(activePerson);
 }
 
@@ -323,8 +319,7 @@ function cssVar(name) { return getComputedStyle(document.documentElement).getPro
 function resolveAccent(personId) {
   if (personId === "filipe")   return peopleCache.filipe?.color   || DEFAULT_COLORS.filipe;
   if (personId === "isabelle") return peopleCache.isabelle?.color || DEFAULT_COLORS.isabelle;
-  if (personId === "grupo")    return cssVar("--grupo-accent") || "#9b6bff";
-  return groupsCache[personId]?.color || cssVar("--grupo-accent") || "#9b6bff";
+  return groupsCache[personId]?.color || cssVar("--group-default-accent") || "#9b6bff";
 }
 
 function setActivePerson(personId) {
@@ -341,10 +336,9 @@ function setActivePerson(personId) {
   panelStudy.style.display    = "flex";
 
   const isOwn = canEdit(personId);
-  // Espaços compartilhados (Grupo, ou um grupo em que a pessoa está) nunca são
-  // "somente leitura" nem precisam do banner — só quando o Filipe (admin) olha
-  // um espaço/grupo do qual ele não faz parte.
-  const memberOfGroup = personId === "grupo" || !!groupsCache[personId]?.members?.includes(currentUser);
+  // Um grupo em que a pessoa está nunca é "somente leitura" nem precisa do
+  // banner — só quando um administrador olha um espaço/grupo do qual não faz parte.
+  const memberOfGroup = !!groupsCache[personId]?.members?.includes(currentUser);
   const isSelf = personId === currentUser || memberOfGroup;
   readonlyBanner.style.display = isSelf ? "none" : "flex";
   if (!isSelf) {
@@ -377,7 +371,7 @@ function showUtilityView(view) {
   if (view === "settings") populateSettingsForm();
 }
 
-// Desenha as abas de grupo (depois das abas fixas Filipe/Isabelle/Grupo).
+// Desenha as abas de grupo (depois das abas fixas Filipe/Isabelle).
 function renderGroupTabs() {
   const groups = visibleGroups();
   dynamicGroupTabsEl.innerHTML = groups.map((g) => `
@@ -386,17 +380,6 @@ function renderGroupTabs() {
     </button>
   `).join("");
   syncActiveTabs();
-}
-
-// A aba "Grupo" fixa é opcional agora (Configurações > Aba "Grupo") — some
-// da barra quando desligada, e se a pessoa estava vendo ela nesse momento,
-// volta pro próprio espaço em vez de deixar uma aba fantasma selecionada.
-function refreshGrupoTabVisibility() {
-  const grupoBtn = document.querySelector(".person-tab-grupo");
-  if (!grupoBtn) return;
-  const enabled = grupoTabEnabled();
-  grupoBtn.style.display = enabled ? "" : "none";
-  if (!enabled && activePerson === "grupo") setActivePerson(currentUser);
 }
 
 // ─── Trancar / destrancar temas ────────────────────────────────────────────────
@@ -528,9 +511,11 @@ let peopleCache          = {}; // { filipe: {pinHash, color, notesEnabled}, isab
 let groupsCache          = {}; // { [groupId]: {id, name, members, color, createdBy, createdAt} }
 
 function notesUIEnabled() { return peopleCache[currentUser]?.notesEnabled !== false; }
-// A aba "Grupo" fixa agora fica escondida por padrão — cada pessoa liga se quiser.
-function grupoTabEnabled() { return peopleCache[currentUser]?.grupoEnabled === true; }
 function musicEnabled() { return peopleCache[currentUser]?.musicEnabled !== false; }
+function musicVolume() {
+  const v = peopleCache[currentUser]?.musicVolume;
+  return typeof v === "number" ? v : 0.7;
+}
 
 // Define --filipe-accent/--isabelle-accent a partir do que cada um escolheu
 // nas Configurações (ou o padrão, se nunca mexeu). Tudo que usa essas duas
@@ -555,7 +540,6 @@ onSnapshot(peopleRef, (snapshot) => {
   snapshot.docs.forEach((d) => { peopleCache[d.id] = d.data(); });
   applyAccentColors();
   refreshActiveAccent();
-  refreshGrupoTabVisibility();
   renderGroupTabs(); // ser (ou deixar de ser) admin muda quais grupos aparecem
   if (currentView && currentView !== "search" && currentView !== "settings") {
     notesPanel.style.display = notesUIEnabled() ? "" : "none";
@@ -570,7 +554,7 @@ onSnapshot(groupsRef, (snapshot) => {
   renderGroupTabs();
   refreshActiveAccent();
   // Se o grupo que a pessoa estava vendo sumiu (foi removido, ou ela perdeu acesso), volta pro próprio espaço.
-  if (currentView && !["filipe", "isabelle", "grupo", "search", "settings"].includes(currentView) && !visibleGroups().some((g) => g.id === currentView)) {
+  if (currentView && !["filipe", "isabelle", "search", "settings"].includes(currentView) && !visibleGroups().some((g) => g.id === currentView)) {
     setActivePerson(currentUser);
   } else if (groupsCache[currentView]) {
     renderStudyList();
@@ -586,8 +570,8 @@ function populateSettingsForm() {
   settingsPinSuccess.textContent = "";
   settingsColorInput.value = peopleCache[currentUser]?.color || DEFAULT_COLORS[currentUser];
   settingsNotesToggle.checked = notesUIEnabled();
-  settingsGrupoToggle.checked = grupoTabEnabled();
   settingsMusicToggle.checked = musicEnabled();
+  settingsMusicVolume.value = musicVolume();
   renderSettingsGroups();
   renderSettingsAdmin();
 }
@@ -722,16 +706,18 @@ settingsNotesToggle.addEventListener("change", async () => {
   catch (err) { console.error("Erro ao salvar preferência de anotações:", err); }
 });
 
-settingsGrupoToggle.addEventListener("change", async () => {
-  try {
-    await updateDoc(doc(db, "people", currentUser), { grupoEnabled: settingsGrupoToggle.checked });
-    refreshGrupoTabVisibility();
-  } catch (err) { console.error("Erro ao salvar preferência da aba Grupo:", err); }
-});
-
 settingsMusicToggle.addEventListener("change", async () => {
   try { await updateDoc(doc(db, "people", currentUser), { musicEnabled: settingsMusicToggle.checked }); }
   catch (err) { console.error("Erro ao salvar preferência de música:", err); }
+});
+
+let volumeSaveTimer = null;
+settingsMusicVolume.addEventListener("input", () => {
+  clearTimeout(volumeSaveTimer);
+  volumeSaveTimer = setTimeout(async () => {
+    try { await updateDoc(doc(db, "people", currentUser), { musicVolume: parseFloat(settingsMusicVolume.value) }); }
+    catch (err) { console.error("Erro ao salvar volume da música:", err); }
+  }, 400);
 });
 
 // ─── Criar grupo ────────────────────────────────────────────────────────────────
@@ -1158,8 +1144,8 @@ function renderStudyItem(topic, isOwn, showNotesUI) {
   const allDone  = isAllChecked(topic);
   const links    = topic.links || [];
   const hasNotes = hasNotesContent(topic.notes);
-  // Espaços compartilhados (Grupo, ou um grupo criado) — trancar não faz
-  // sentido ali, já que todo mundo com acesso à aba já pode ver tudo.
+  // Espaço de grupo — trancar não faz sentido ali, já que todo mundo com
+  // acesso à aba já pode ver tudo.
   const isSharedSpace = activePerson !== "filipe" && activePerson !== "isabelle";
   const locked   = !isSharedSpace && !!topic.locked;
   const showLocked = locked && !isOwn && !isUnlocked("study", topic.id);
@@ -1409,6 +1395,7 @@ function openPhotoModal() {
     // Isso roda direto dentro do clique da pessoa, então o navegador deixa tocar
     // com som (autoplay "silencioso" sem gesto do usuário é bloqueado, mas isso não é o caso aqui).
     photoModalAudio.currentTime = 0;
+    photoModalAudio.volume = musicVolume();
     photoModalAudio.play().catch((err) => console.error("Erro ao tocar a música:", err));
   }
 }

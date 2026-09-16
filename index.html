@@ -135,9 +135,6 @@
           <button class="person-tab person-tab-isabelle" data-person="isabelle">
             <span class="person-tab-dot"></span> <span class="person-tab-label">Isabelle</span>
           </button>
-          <button class="person-tab person-tab-grupo" data-person="grupo">
-            <span class="person-tab-dot"></span> <span class="person-tab-label">Grupo</span>
-          </button>
           <div id="dynamic-group-tabs" style="display:contents;"></div>
           <button type="button" class="person-tab person-tab-utility" id="add-group-btn" aria-label="Criar grupo">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -252,21 +249,15 @@
         </div>
 
         <div class="settings-section">
-          <h2 class="settings-title">Aba "Grupo"</h2>
-          <p class="settings-desc">Aquele espaço compartilhado fixo. Fica escondido por padrão — se quiser um espaço compartilhado, também dá pra criar um grupo com nome próprio.</p>
-          <label class="settings-toggle-row">
-            <input type="checkbox" id="settings-grupo-toggle" />
-            <span class="settings-toggle-switch"></span>
-            <span class="settings-toggle-label">Mostrar a aba Grupo</span>
-          </label>
-        </div>
-
-        <div class="settings-section">
           <h2 class="settings-title">Música da foto</h2>
           <label class="settings-toggle-row">
             <input type="checkbox" id="settings-music-toggle" />
             <span class="settings-toggle-switch"></span>
             <span class="settings-toggle-label">Tocar música ao ver a foto</span>
+          </label>
+          <label class="settings-volume-row">
+            <span class="settings-volume-label">Volume</span>
+            <input type="range" id="settings-music-volume" min="0" max="1" step="0.05" />
           </label>
         </div>
 

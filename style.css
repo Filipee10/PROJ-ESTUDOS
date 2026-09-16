@@ -27,7 +27,8 @@
      cada um está sendo visualizado. */
   --filipe-accent:   #4da3ff;
   --isabelle-accent: #ff6fae;
-  --grupo-accent:    #9b6bff;
+  /* Cor usada em qualquer grupo criado que ainda não tenha uma cor própria salva. */
+  --group-default-accent: #9b6bff;
 
   /* Qual das duas cores acima está guiando a paleta agora. */
   --active-accent: var(--filipe-accent);
@@ -183,13 +184,6 @@ header h1 span { color: var(--blue); }
   background: color-mix(in srgb, var(--isabelle-accent) 8%, transparent);
 }
 .person-tab-isabelle.active .person-tab-dot { background: var(--isabelle-accent); }
-
-.person-tab-grupo.active {
-  color: var(--grupo-accent);
-  border-color: color-mix(in srgb, var(--grupo-accent) 78%, black);
-  background: color-mix(in srgb, var(--grupo-accent) 8%, transparent);
-}
-.person-tab-grupo.active .person-tab-dot { background: var(--grupo-accent); }
 
 .person-tab-dynamic.active {
   color: var(--tab-accent);
@@ -1199,6 +1193,19 @@ header h1 span { color: var(--blue); }
 .settings-toggle-row input:checked + .settings-toggle-switch::after { transform: translateX(16px); background: #0b1220; }
 
 .settings-toggle-label { font-size: 0.88rem; }
+
+.settings-volume-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+}
+.settings-volume-label { font-size: 0.82rem; color: var(--text-muted); flex-shrink: 0; }
+.settings-volume-row input[type="range"] {
+  flex: 1;
+  accent-color: var(--blue);
+  cursor: pointer;
+}
 
 /* ── Configurações: gerenciar grupos ────────────────────── */
 .settings-groups-list {
