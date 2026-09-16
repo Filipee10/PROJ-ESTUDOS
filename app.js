@@ -855,9 +855,11 @@ studyForm.addEventListener("submit", async (e) => {
   finally { btn.disabled = false; }
 });
 
-// ─── Coraçãozinho de clique (só quando a Isabelle está logada) ────────────────
+// ─── Coraçãozinho de clique ────────────────────────────────────────────────────
+// Por enquanto aparece pra quem estiver logado (Filipe ou Isabelle) — o Filipe,
+// como admin, pediu para ver tudo por ora; dá pra restringir de novo depois.
 document.addEventListener("click", (e) => {
-  if (currentUser !== "isabelle") return;
+  if (!currentUser) return;
   const heart = document.createElement("div");
   heart.className = "click-heart";
   heart.style.left = e.clientX + "px";
