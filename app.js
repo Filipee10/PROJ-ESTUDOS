@@ -20,17 +20,30 @@ const SPACE_LABELS = { filipe: "Filipe", isabelle: "Isabelle", grupo: "Grupo" };
 const DEFAULT_COLORS = { filipe: "#4da3ff", isabelle: "#ff6fae" };
 function ownerOf(t) { return (t && t.owner) || "filipe"; } // docs antigos, sem dono, caem no Filipe
 
-// No Grupo, quem assina é sempre quem está logado (Filipe ou Isabelle) —
-// nos espaços individuais, mantém o comportamento de sempre (assina o dono do espaço).
+// Em qualquer espaço compartilhado (Grupo ou um grupo criado por vocês),
+// quem assina é sempre quem está logado — nos espaços individuais, mantém
+// o comportamento de sempre (assina o dono do espaço).
 function addedByLabel() {
-  return activePerson === "grupo" ? (PEOPLE[currentUser] || "Anônimo") : (PEOPLE[activePerson] || "Anônimo");
+  if (activePerson === "filipe" || activePerson === "isabelle") return PEOPLE[activePerson] || "Anônimo";
+  return PEOPLE[currentUser] || "Anônimo";
 }
 
-// Filipe é o admin: além do próprio espaço, também enxerga e edita o da Isabelle.
-// O espaço "grupo" é compartilhado: os dois sempre podem editar.
+// Filipe é o admin: além do próprio espaço, também enxerga e edita o da Isabelle
+// e qualquer grupo. O espaço "grupo" é compartilhado: os dois sempre podem editar.
+// Um grupo criado nas Configurações só pode ser editado por quem está na lista
+// de participantes dele (e, como sempre, pelo Filipe).
 function canEdit(personId) {
   if (personId === "grupo") return true;
-  return personId === currentUser || currentUser === "filipe";
+  if (personId === "filipe" || personId === "isabelle") return personId === currentUser || currentUser === "filipe";
+  return currentUser === "filipe" || !!groupsCache[personId]?.members?.includes(currentUser);
+}
+
+// Grupos que a pessoa logada deve ver como aba: Filipe (admin) vê todos;
+// qualquer outra pessoa só vê os grupos em que está listada como participante.
+function visibleGroups() {
+  return Object.values(groupsCache)
+    .filter((g) => currentUser === "filipe" || (g.members || []).includes(currentUser))
+    .sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
 }
 
 // hash simples (djb2) só para não deixar o PIN em texto puro no banco.
@@ -49,6 +62,7 @@ function hashPin(personId, pin) { return simpleHash(`${personId}:${pin}`); }
 const studyRef  = collection(db, "study");
 const notesRef  = collection(db, "standalone-notes");
 const peopleRef = collection(db, "people");
+const groupsRef = collection(db, "groups");
 const qStudy    = query(studyRef, orderBy("createdAt", "asc"));
 const qNotes    = query(notesRef, orderBy("updatedAt", "desc"));
 
@@ -68,8 +82,14 @@ const userNameDisplay   = document.getElementById("user-name-display");
 const logoutBtn         = document.getElementById("logout-btn");
 
 // ─── Elementos: abas por pessoa e utilitárias ──────────────────────────────────
-const personTabBtns     = document.querySelectorAll(".person-tab[data-person]");
-const utilityTabBtns    = document.querySelectorAll(".person-tab[data-view]");
+// Abas de grupo são criadas dinamicamente (renderGroupTabs), então em vez de
+// guardar a NodeList uma vez só (que ficaria desatualizada), essas duas
+// funções sempre buscam de novo o que existe no DOM no momento.
+function allPersonTabBtns()  { return document.querySelectorAll(".person-tab[data-person]"); }
+function allUtilityTabBtns() { return document.querySelectorAll(".person-tab[data-view]"); }
+const personTabsEl       = document.getElementById("person-tabs");
+const dynamicGroupTabsEl = document.getElementById("dynamic-group-tabs");
+const addGroupBtn        = document.getElementById("add-group-btn");
 const readonlyBanner     = document.getElementById("readonly-banner");
 const readonlyBannerText = document.getElementById("readonly-banner-text");
 
@@ -78,8 +98,9 @@ const panelSearch   = document.getElementById("panel-search");
 const panelSettings = document.getElementById("panel-settings");
 
 // ─── Elementos: pesquisa ────────────────────────────────────────────────────────
-const searchForm  = document.getElementById("search-form");
-const searchInput = document.getElementById("search-input");
+const searchForm         = document.getElementById("search-form");
+const searchInput        = document.getElementById("search-input");
+const searchDestinations = document.getElementById("search-destinations");
 
 // ─── Elementos: configurações ───────────────────────────────────────────────────
 const settingsPinForm      = document.getElementById("settings-pin-form");
@@ -90,6 +111,16 @@ const settingsPinSuccess   = document.getElementById("settings-pin-success");
 const settingsColorInput   = document.getElementById("settings-color-input");
 const settingsColorReset   = document.getElementById("settings-color-reset");
 const settingsNotesToggle  = document.getElementById("settings-notes-toggle");
+const settingsGroupsList   = document.getElementById("settings-groups-list");
+const settingsAddGroupBtn  = document.getElementById("settings-add-group-btn");
+
+// ─── Elementos: criar grupo ─────────────────────────────────────────────────────
+const groupModal          = document.getElementById("group-modal");
+const groupForm           = document.getElementById("group-form");
+const groupNameInput      = document.getElementById("group-name-input");
+const groupMembersPicker  = document.getElementById("group-members-picker");
+const groupFormError      = document.getElementById("group-form-error");
+const groupFormCancel     = document.getElementById("group-form-cancel");
 
 // ─── Elementos: desbloquear tema ───────────────────────────────────────────────
 const unlockModal       = document.getElementById("unlock-modal");
@@ -240,6 +271,10 @@ function completeLogin(personId) {
   loginModal.style.display = "none";
   userNameDisplay.textContent = PEOPLE[currentUser];
   applyUserBadgeColor();
+  // Quais grupos aparecem como aba depende de quem está logado (visibleGroups
+  // usa currentUser) — sem refazer isso aqui, trocar de pessoa sem recarregar
+  // a página deixaria as abas de grupo da sessão anterior penduradas.
+  renderGroupTabs();
   setActivePerson(activePerson);
 }
 
@@ -249,40 +284,60 @@ logoutBtn.addEventListener("click", () => {
   currentView = null;
   localStorage.removeItem("study-person");
   closeNotesEditor();
+  dynamicGroupTabsEl.innerHTML = "";
   showLoginModal();
 });
 
 // ─── Abas por pessoa e utilitárias (pesquisa / configurações) ─────────────────
-personTabBtns.forEach((btn) => {
-  btn.addEventListener("click", () => setActivePerson(btn.dataset.person));
+// Delegação de clique (em vez de um listener por botão): abas de grupo são
+// criadas e destruídas dinamicamente, então um listener fixo por botão ficaria
+// esquecido nos que forem recriados depois.
+personTabsEl.addEventListener("click", (e) => {
+  const personBtn = e.target.closest(".person-tab[data-person]");
+  if (personBtn) { setActivePerson(personBtn.dataset.person); return; }
+  const viewBtn = e.target.closest(".person-tab[data-view]");
+  if (viewBtn) showUtilityView(viewBtn.dataset.view);
 });
 
-utilityTabBtns.forEach((btn) => {
-  btn.addEventListener("click", () => showUtilityView(btn.dataset.view));
-});
+function syncActiveTabs() {
+  allPersonTabBtns().forEach((b) => b.classList.toggle("active", b.dataset.person === activePerson));
+}
+
+function cssVar(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+
+// A cor que guia o tema (fundo, bordas, botões) para o espaço sendo visto agora.
+function resolveAccent(personId) {
+  if (personId === "filipe")   return peopleCache.filipe?.color   || DEFAULT_COLORS.filipe;
+  if (personId === "isabelle") return peopleCache.isabelle?.color || DEFAULT_COLORS.isabelle;
+  if (personId === "grupo")    return cssVar("--grupo-accent") || "#9b6bff";
+  return groupsCache[personId]?.color || cssVar("--grupo-accent") || "#9b6bff";
+}
 
 function setActivePerson(personId) {
   activePerson = personId;
   currentView  = personId;
   closeNotesEditor();
 
-  personTabBtns.forEach((b) => b.classList.toggle("active", b.dataset.person === personId));
-  utilityTabBtns.forEach((b) => b.classList.remove("active"));
-  document.body.classList.toggle("viewing-isabelle", personId === "isabelle");
-  document.body.classList.toggle("viewing-grupo", personId === "grupo");
+  document.documentElement.style.setProperty("--active-accent", resolveAccent(personId));
+  syncActiveTabs();
+  allUtilityTabBtns().forEach((b) => b.classList.remove("active"));
 
   panelSearch.style.display   = "none";
   panelSettings.style.display = "none";
   panelStudy.style.display    = "flex";
 
-  const isOwn  = canEdit(personId);
-  // O Grupo é compartilhado — nunca é "somente leitura" nem precisa do banner.
-  const isSelf = personId === currentUser || personId === "grupo";
+  const isOwn = canEdit(personId);
+  // Espaços compartilhados (Grupo, ou um grupo em que a pessoa está) nunca são
+  // "somente leitura" nem precisam do banner — só quando o Filipe (admin) olha
+  // um espaço/grupo do qual ele não faz parte.
+  const memberOfGroup = personId === "grupo" || !!groupsCache[personId]?.members?.includes(currentUser);
+  const isSelf = personId === currentUser || memberOfGroup;
   readonlyBanner.style.display = isSelf ? "none" : "flex";
   if (!isSelf) {
+    const label = PEOPLE[personId] || groupsCache[personId]?.name || personId;
     readonlyBannerText.textContent = isOwn
-      ? `Você está vendo o espaço de ${PEOPLE[personId]} (acesso de administrador).`
-      : `Você está vendo o espaço de ${PEOPLE[personId]} — somente leitura.`;
+      ? `Você está vendo o espaço de ${label} (acesso de administrador).`
+      : `Você está vendo o espaço de ${label} — somente leitura.`;
   }
   studyFormCard.style.display = isOwn ? "" : "none";
   newNoteBtn.style.display    = isOwn ? "" : "none";
@@ -296,8 +351,8 @@ function showUtilityView(view) {
   currentView = view;
   closeNotesEditor();
 
-  personTabBtns.forEach((b) => b.classList.remove("active"));
-  utilityTabBtns.forEach((b) => b.classList.toggle("active", b.dataset.view === view));
+  allPersonTabBtns().forEach((b) => b.classList.remove("active"));
+  allUtilityTabBtns().forEach((b) => b.classList.toggle("active", b.dataset.view === view));
 
   readonlyBanner.style.display = "none";
   panelStudy.style.display  = "none";
@@ -306,6 +361,17 @@ function showUtilityView(view) {
   panelSettings.style.display = view === "settings" ? "flex" : "none";
 
   if (view === "settings") populateSettingsForm();
+}
+
+// Desenha as abas de grupo (depois das abas fixas Filipe/Isabelle/Grupo).
+function renderGroupTabs() {
+  const groups = visibleGroups();
+  dynamicGroupTabsEl.innerHTML = groups.map((g) => `
+    <button class="person-tab person-tab-dynamic" data-person="${escapeHtml(g.id)}" title="${escapeHtml(g.name || "Grupo")}" style="--tab-accent:${escapeHtml(g.color || "#9b6bff")}">
+      <span class="person-tab-dot"></span> <span class="person-tab-label">${escapeHtml(g.name || "Grupo")}</span>
+    </button>
+  `).join("");
+  syncActiveTabs();
 }
 
 // ─── Trancar / destrancar temas ────────────────────────────────────────────────
@@ -434,6 +500,7 @@ linkForm.addEventListener("submit", async (e) => {
 let studyCache          = [];
 let standaloneNotesCache = [];
 let peopleCache          = {}; // { filipe: {pinHash, color, notesEnabled}, isabelle: {...} }
+let groupsCache          = {}; // { [groupId]: {id, name, members, color, createdBy, createdAt} }
 
 function notesUIEnabled() { return peopleCache[currentUser]?.notesEnabled !== false; }
 
@@ -446,15 +513,40 @@ function applyAccentColors() {
   root.setProperty("--isabelle-accent", peopleCache.isabelle?.color || DEFAULT_COLORS.isabelle);
 }
 
+// Se a pessoa mudar a própria cor enquanto está olhando o próprio espaço
+// (ou o do outro, como admin), o tema tem que recolorir na hora — sem isso,
+// só atualizaria na próxima vez que trocasse de aba.
+function refreshActiveAccent() {
+  if (currentView && currentView !== "search" && currentView !== "settings") {
+    document.documentElement.style.setProperty("--active-accent", resolveAccent(currentView));
+  }
+}
+
 onSnapshot(peopleRef, (snapshot) => {
   peopleCache = {};
   snapshot.docs.forEach((d) => { peopleCache[d.id] = d.data(); });
   applyAccentColors();
+  refreshActiveAccent();
   if (currentView === "filipe" || currentView === "isabelle") {
     notesPanel.style.display = notesUIEnabled() ? "" : "none";
     renderStudyList();
   }
   if (currentView === "settings") populateSettingsForm();
+});
+
+onSnapshot(groupsRef, (snapshot) => {
+  groupsCache = {};
+  snapshot.docs.forEach((d) => { groupsCache[d.id] = { id: d.id, ...d.data() }; });
+  renderGroupTabs();
+  refreshActiveAccent();
+  // Se o grupo que a pessoa estava vendo sumiu (foi removido, ou ela perdeu acesso), volta pro próprio espaço.
+  if (currentView && !["filipe", "isabelle", "grupo", "search", "settings"].includes(currentView) && !visibleGroups().some((g) => g.id === currentView)) {
+    setActivePerson(currentUser);
+  } else if (groupsCache[currentView]) {
+    renderStudyList();
+    renderNotesRecent();
+  }
+  if (currentView === "settings") renderSettingsGroups();
 });
 
 function populateSettingsForm() {
@@ -464,6 +556,57 @@ function populateSettingsForm() {
   settingsPinSuccess.textContent = "";
   settingsColorInput.value = peopleCache[currentUser]?.color || DEFAULT_COLORS[currentUser];
   settingsNotesToggle.checked = notesUIEnabled();
+  renderSettingsGroups();
+}
+
+// Lista os grupos (com nome editável, participantes e remoção) nas Configurações.
+function renderSettingsGroups() {
+  const groups = visibleGroups();
+  if (groups.length === 0) {
+    settingsGroupsList.innerHTML = `<p class="settings-desc" style="margin:0;">Nenhum grupo ainda.</p>`;
+    return;
+  }
+  settingsGroupsList.innerHTML = groups.map((g) => `
+    <div class="settings-group-row" data-id="${escapeHtml(g.id)}">
+      <span class="settings-group-dot" style="background:${escapeHtml(g.color || "#9b6bff")}"></span>
+      <input type="text" class="settings-group-name" value="${escapeHtml(g.name || "")}" maxlength="60" />
+      <div class="settings-group-members">
+        <label><input type="checkbox" value="filipe" ${g.members?.includes("filipe") ? "checked" : ""} /> Filipe</label>
+        <label><input type="checkbox" value="isabelle" ${g.members?.includes("isabelle") ? "checked" : ""} /> Isabelle</label>
+      </div>
+      <button type="button" class="btn-icon settings-group-delete" aria-label="Remover grupo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6M9 6V4h6v2"/></svg>
+      </button>
+    </div>
+  `).join("");
+
+  settingsGroupsList.querySelectorAll(".settings-group-row").forEach((row) => {
+    const groupId = row.dataset.id;
+    const nameInput = row.querySelector(".settings-group-name");
+    let nameTimer;
+    nameInput.addEventListener("input", () => {
+      clearTimeout(nameTimer);
+      nameTimer = setTimeout(async () => {
+        try { await updateDoc(doc(db, "groups", groupId), { name: nameInput.value.trim() || "Grupo" }); }
+        catch (err) { console.error("Erro ao renomear grupo:", err); }
+      }, 500);
+    });
+
+    row.querySelectorAll('input[type="checkbox"]').forEach((cb) => {
+      cb.addEventListener("change", async () => {
+        const members = [...row.querySelectorAll('input[type="checkbox"]:checked')].map((i) => i.value);
+        try { await updateDoc(doc(db, "groups", groupId), { members }); }
+        catch (err) { console.error("Erro ao mudar participantes do grupo:", err); }
+      });
+    });
+
+    row.querySelector(".settings-group-delete").addEventListener("click", async () => {
+      try {
+        await deleteDoc(doc(db, "groups", groupId));
+        if (activePerson === groupId) setActivePerson(currentUser);
+      } catch (err) { console.error("Erro ao remover grupo:", err); }
+    });
+  });
 }
 
 settingsPinForm.addEventListener("submit", async (e) => {
@@ -512,6 +655,49 @@ settingsNotesToggle.addEventListener("change", async () => {
   catch (err) { console.error("Erro ao salvar preferência de anotações:", err); }
 });
 
+// ─── Criar grupo ────────────────────────────────────────────────────────────────
+// Paleta que gira conforme grupos vão sendo criados, pra cada um ter uma cor
+// própria sem precisar perguntar — dá pra trocar depois nas Configurações.
+const GROUP_COLOR_PALETTE = ["#9b6bff", "#2dd4bf", "#f59e0b", "#22c55e", "#38bdf8", "#eab308", "#ec4899", "#a3e635"];
+
+function openGroupModal() {
+  groupNameInput.value = "";
+  groupFormError.textContent = "";
+  groupMembersPicker.querySelectorAll("input").forEach((i) => { i.checked = i.value === currentUser; });
+  groupModal.style.display = "flex";
+  setTimeout(() => groupNameInput.focus(), 50);
+}
+
+function closeGroupModal() { groupModal.style.display = "none"; }
+
+addGroupBtn.addEventListener("click", openGroupModal);
+settingsAddGroupBtn.addEventListener("click", openGroupModal);
+groupFormCancel.addEventListener("click", closeGroupModal);
+groupModal.addEventListener("click", (e) => { if (e.target === groupModal) closeGroupModal(); });
+
+groupForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  groupFormError.textContent = "";
+  const name = groupNameInput.value.trim();
+  if (!name) { groupFormError.textContent = "Dê um nome pro grupo."; return; }
+  const members = [...groupMembersPicker.querySelectorAll("input:checked")].map((i) => i.value);
+  if (members.length === 0) { groupFormError.textContent = "Escolha ao menos uma pessoa."; return; }
+
+  const color = GROUP_COLOR_PALETTE[Object.keys(groupsCache).length % GROUP_COLOR_PALETTE.length];
+  try {
+    const ref = await addDoc(groupsRef, {
+      name, members, color,
+      createdBy: currentUser,
+      createdAt: serverTimestamp()
+    });
+    closeGroupModal();
+    setActivePerson(ref.id);
+  } catch (err) {
+    console.error("Erro ao criar grupo:", err);
+    groupFormError.textContent = "Erro ao criar. Tente de novo.";
+  }
+});
+
 // ─── Pesquisa (atalhos para sites oficiais) ─────────────────────────────────────
 // Cada site tem sua própria busca "de verdade" (confirmada olhando o form de busca
 // de cada um) — a pessoa digita uma vez e escolhe em qual site quer ver o resultado.
@@ -528,9 +714,19 @@ function openSearch(site) {
   window.open(build(term), "_blank", "noopener,noreferrer");
 }
 
+// Digitar e apertar Enter (ou "Buscar") não abre nada direto — só revela as
+// opções de onde ver o resultado. Escolher o site é quem realmente abre.
 searchForm.addEventListener("submit", (e) => {
   e.preventDefault();
-  openSearch("jw");
+  const term = searchInput.value.trim();
+  if (!term) { searchInput.focus(); return; }
+  searchDestinations.style.display = "none";
+  void searchDestinations.offsetWidth; // força a animação a tocar de novo, mesmo se já estava visível
+  searchDestinations.style.display = "flex";
+});
+
+searchInput.addEventListener("input", () => {
+  if (!searchInput.value.trim()) searchDestinations.style.display = "none";
 });
 
 document.querySelectorAll(".search-dest-btn").forEach((btn) => {
@@ -883,9 +1079,10 @@ function renderStudyItem(topic, isOwn, showNotesUI) {
   const allDone  = isAllChecked(topic);
   const links    = topic.links || [];
   const hasNotes = hasNotesContent(topic.notes);
-  // Grupo é compartilhado — trancar não faz sentido lá (os dois sempre têm acesso).
-  const isGroupSpace = activePerson === "grupo";
-  const locked   = !isGroupSpace && !!topic.locked;
+  // Espaços compartilhados (Grupo, ou um grupo criado) — trancar não faz
+  // sentido ali, já que todo mundo com acesso à aba já pode ver tudo.
+  const isSharedSpace = activePerson !== "filipe" && activePerson !== "isabelle";
+  const locked   = !isSharedSpace && !!topic.locked;
   const showLocked = locked && !isOwn && !isUnlocked("study", topic.id);
 
   const li       = document.createElement("li");
@@ -902,7 +1099,7 @@ function renderStudyItem(topic, isOwn, showNotesUI) {
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           Link
         </button>
-        ${!isGroupSpace ? `
+        ${!isSharedSpace ? `
         <button class="btn-icon btn-lock${locked ? " is-locked" : ""}" aria-label="${locked ? "Destrancar" : "Trancar"} tema">
           ${svgLock(locked)}
         </button>` : ""}
@@ -934,7 +1131,7 @@ function renderStudyItem(topic, isOwn, showNotesUI) {
       </div>
       <div class="topic-header-info">
         <span class="topic-title">${escapeHtml(topic.title)}</span>
-        <span class="topic-author">por ${escapeHtml(topic.addedBy || SPACE_LABELS[ownerOf(topic)])}</span>
+        <span class="topic-author">por ${escapeHtml(topic.addedBy || SPACE_LABELS[ownerOf(topic)] || groupsCache[ownerOf(topic)]?.name || "Alguém")}</span>
       </div>
       <div class="topic-header-actions">${actionsHtml}</div>
     </div>
@@ -1052,6 +1249,18 @@ function spawnClickHeart(x, y) {
   heart.addEventListener("animationend", () => heart.remove());
 }
 
+// Vários corações subindo ao redor de um ponto, escalonados no tempo — usado
+// quando a foto do casal aparece, como um "confete" discreto de corações.
+function spawnHeartBurst(cx, cy, count = 10) {
+  for (let i = 0; i < count; i++) {
+    setTimeout(() => {
+      const dx = (Math.random() - 0.5) * 140;
+      const dy = (Math.random() - 0.5) * 40;
+      spawnClickHeart(cx + dx, cy + dy);
+    }, i * 80);
+  }
+}
+
 let lastHeartAt = 0;
 
 function maybeSpawnHeart(x, y) {
@@ -1106,6 +1315,9 @@ function openPhotoModal() {
   // A imagem começa a carregar assim que o HTML é lido (antes do módulo rodar),
   // então se ela já falhou antes do "error" abaixo estar escutando, checa aqui.
   if (photoModalImg.complete && photoModalImg.naturalWidth === 0) showPhotoFallback();
+
+  const rect = pageHeartSignature.getBoundingClientRect();
+  spawnHeartBurst(rect.left + rect.width / 2, rect.top + rect.height / 2);
 }
 function closePhotoModal() { photoModal.style.display = "none"; }
 

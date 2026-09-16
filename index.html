@@ -75,6 +75,28 @@
     </div>
   </div>
 
+  <!-- Modal: criar grupo -->
+  <div id="group-modal" class="modal-overlay" style="display:none;">
+    <div class="modal">
+      <h2>Novo grupo</h2>
+      <p>Crie um espaço compartilhado e escolha quem participa.</p>
+      <form id="group-form">
+        <label class="field-label">Nome do grupo</label>
+        <input type="text" id="group-name-input" placeholder="Ex: Estudo em família" maxlength="60" autocomplete="off" />
+        <label class="field-label">Quem participa</label>
+        <div class="group-members-picker" id="group-members-picker">
+          <label class="group-member-choice"><input type="checkbox" value="filipe" /> Filipe</label>
+          <label class="group-member-choice"><input type="checkbox" value="isabelle" /> Isabelle</label>
+        </div>
+        <span class="field-error" id="group-form-error"></span>
+        <div class="modal-actions">
+          <button type="button" id="group-form-cancel" class="btn-ghost">Cancelar</button>
+          <button type="submit" class="btn-primary">Criar grupo</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- Modal: adicionar link -->
   <div id="link-modal" class="modal-overlay" style="display:none;">
     <div class="modal">
@@ -108,13 +130,17 @@
       <div class="person-tabs-wrapper">
         <div class="person-tabs" id="person-tabs">
           <button class="person-tab person-tab-filipe" data-person="filipe">
-            <span class="person-tab-dot"></span> Filipe
+            <span class="person-tab-dot"></span> <span class="person-tab-label">Filipe</span>
           </button>
           <button class="person-tab person-tab-isabelle" data-person="isabelle">
-            <span class="person-tab-dot"></span> Isabelle
+            <span class="person-tab-dot"></span> <span class="person-tab-label">Isabelle</span>
           </button>
           <button class="person-tab person-tab-grupo" data-person="grupo">
-            <span class="person-tab-dot"></span> Grupo
+            <span class="person-tab-dot"></span> <span class="person-tab-label">Grupo</span>
+          </button>
+          <div id="dynamic-group-tabs" style="display:contents;"></div>
+          <button type="button" class="person-tab person-tab-utility" id="add-group-btn" aria-label="Criar grupo">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           </button>
           <button class="person-tab person-tab-utility" data-view="search" aria-label="Pesquisa">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -132,6 +158,16 @@
 
       <!-- Painel: Lista de estudo -->
       <div id="panel-study" class="panel">
+        <div class="quick-links">
+          <a href="https://www.jw.org/pt/" target="_blank" rel="noopener noreferrer" class="quick-link">
+            <img src="images/jw-icon.ico" alt="" class="quick-link-icon" />
+            jw.org
+          </a>
+          <a href="https://wol.jw.org/pt/wol/h/r5/lp-t" target="_blank" rel="noopener noreferrer" class="quick-link">
+            <img src="images/wol-icon.ico" alt="" class="quick-link-icon" />
+            Biblioteca Online
+          </a>
+        </div>
         <div class="form-card">
           <form id="study-form" class="form-inner">
             <div class="form-row">
@@ -170,13 +206,13 @@
               </button>
             </div>
           </form>
-          <div class="search-destinations" id="search-destinations">
+          <div class="search-destinations" id="search-destinations" style="display:none;">
             <button type="button" class="search-dest-btn" data-site="jw">
-              <span class="search-dest-icon search-dest-icon-jw">JW</span>
+              <span class="search-dest-icon"><img src="images/jw-icon.ico" alt="" /></span>
               <span class="search-dest-name">jw.org</span>
             </button>
             <button type="button" class="search-dest-btn" data-site="wol">
-              <span class="search-dest-icon search-dest-icon-wol">WOL</span>
+              <span class="search-dest-icon"><img src="images/wol-icon.ico" alt="" /></span>
               <span class="search-dest-name">Biblioteca Online</span>
             </button>
           </div>
@@ -213,6 +249,13 @@
             <span class="settings-toggle-switch"></span>
             <span class="settings-toggle-label">Mostrar o painel de anotações</span>
           </label>
+        </div>
+
+        <div class="settings-section">
+          <h2 class="settings-title">Seus grupos</h2>
+          <p class="settings-desc">Renomeie, mude quem participa ou remova os grupos compartilhados.</p>
+          <div id="settings-groups-list" class="settings-groups-list"></div>
+          <button type="button" id="settings-add-group-btn" class="btn-ghost settings-add-group-btn">+ Novo grupo</button>
         </div>
       </div>
     </div>
