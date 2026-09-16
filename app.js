@@ -17,6 +17,9 @@ import {
 const PEOPLE = { filipe: "Filipe", isabelle: "Isabelle" };
 function ownerOf(t) { return (t && t.owner) || "filipe"; } // docs antigos, sem dono, caem no Filipe
 
+// Filipe é o admin: além do próprio espaço, também enxerga e edita o da Isabelle.
+function canEdit(personId) { return personId === currentUser || currentUser === "filipe"; }
+
 // hash simples (djb2) só para não deixar o PIN em texto puro no banco.
 // não é criptografia forte — serve para uso pessoal, não para dados sensíveis.
 function simpleHash(str) {
@@ -52,8 +55,8 @@ const logoutBtn         = document.getElementById("logout-btn");
 
 // ─── Elementos: abas por pessoa ────────────────────────────────────────────────
 const personTabBtns     = document.querySelectorAll(".person-tab");
-const readonlyBanner    = document.getElementById("readonly-banner");
-const readonlyPersonName = document.getElementById("readonly-person-name");
+const readonlyBanner     = document.getElementById("readonly-banner");
+const readonlyBannerText = document.getElementById("readonly-banner-text");
 
 // ─── Elementos: desbloquear tema ───────────────────────────────────────────────
 const unlockModal       = document.getElementById("unlock-modal");
@@ -189,12 +192,18 @@ loginPinForm.addEventListener("submit", async (e) => {
   }
 });
 
+function applyUserBadgeColor() {
+  userNameDisplay.classList.toggle("user-badge-color-filipe", currentUser === "filipe");
+  userNameDisplay.classList.toggle("user-badge-color-isabelle", currentUser === "isabelle");
+}
+
 function completeLogin(personId) {
   currentUser = personId;
   activePerson = personId;
   localStorage.setItem("study-person", personId);
   loginModal.style.display = "none";
   userNameDisplay.textContent = PEOPLE[currentUser];
+  applyUserBadgeColor();
   setActivePerson(activePerson);
 }
 
@@ -218,9 +227,12 @@ function setActivePerson(personId) {
   personTabBtns.forEach((b) => b.classList.toggle("active", b.dataset.person === personId));
   document.body.classList.toggle("theme-isabelle", personId === "isabelle");
 
-  const isOwn = personId === currentUser;
-  readonlyBanner.style.display = isOwn ? "none" : "flex";
-  readonlyPersonName.textContent = PEOPLE[personId];
+  const isSelf = personId === currentUser;
+  const isOwn  = canEdit(personId);
+  readonlyBanner.style.display = isSelf ? "none" : "flex";
+  readonlyBannerText.textContent = isOwn
+    ? `Você está vendo o espaço de ${PEOPLE[personId]} (acesso de administrador).`
+    : `Você está vendo o espaço de ${PEOPLE[personId]} — somente leitura.`;
   studyFormCard.style.display = isOwn ? "" : "none";
   newNoteBtn.style.display    = isOwn ? "" : "none";
 
@@ -502,8 +514,8 @@ async function saveActiveNote() {
       } else {
         const ref = await addDoc(notesRef, {
           title, content,
-          owner:     currentUser,
-          addedBy:   PEOPLE[currentUser] || "Anônimo",
+          owner:     activePerson,
+          addedBy:   PEOPLE[activePerson] || "Anônimo",
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp()
         });
@@ -518,7 +530,7 @@ async function saveActiveNote() {
 }
 
 newNoteBtn.addEventListener("click", () => {
-  if (activePerson !== currentUser) return;
+  if (!canEdit(activePerson)) return;
   openStandaloneNote(null);
   if (window.innerWidth <= 860) notesPanel.scrollIntoView({ behavior: "smooth", block: "start" });
 });
@@ -552,11 +564,11 @@ notesPanel.addEventListener("drop", (e) => {
 
 function renderNotesRecent() {
   const items = [];
-  const isOwnActive = activePerson === currentUser;
+  const isOwnActive = canEdit(activePerson);
 
   if (isOwnActive) {
     standaloneNotesCache.forEach((n) => {
-      if ((n.owner || currentUser) !== activePerson) return;
+      if ((n.owner || "filipe") !== activePerson) return;
       if (!hasNotesContent(n.content) && !hasNotesContent(n.title)) return;
       items.push({ kind: "standalone", id: n.id, title: n.title || "Sem título", preview: n.content || "" });
     });
@@ -634,7 +646,7 @@ onSnapshot(qStudy, (snapshot) => {
 
 function renderStudyList() {
   const items = studyCache.filter((t) => ownerOf(t) === activePerson);
-  const isOwn = activePerson === currentUser;
+  const isOwn = canEdit(activePerson);
 
   studyList.innerHTML = "";
   studyTotal.textContent = items.length;
@@ -823,7 +835,7 @@ async function deleteLink(topic, idx, colName) {
 // ─── Adicionar tema na lista de estudo ────────────────────────────────────────
 studyForm.addEventListener("submit", async (e) => {
   e.preventDefault();
-  if (activePerson !== currentUser) return;
+  if (!canEdit(activePerson)) return;
   const title = studyTitleInput.value.trim();
   if (!title) return;
   const btn = studyForm.querySelector("button[type='submit']");
@@ -832,9 +844,9 @@ studyForm.addEventListener("submit", async (e) => {
     await addDoc(studyRef, {
       title,
       links:     [],
-      owner:     currentUser,
+      owner:     activePerson,
       locked:    false,
-      addedBy:   PEOPLE[currentUser] || "Anônimo",
+      addedBy:   PEOPLE[activePerson] || "Anônimo",
       createdAt: serverTimestamp()
     });
     studyTitleInput.value = "";
@@ -875,5 +887,6 @@ if (!currentUser) {
   showLoginModal();
 } else {
   userNameDisplay.textContent = PEOPLE[currentUser];
+  applyUserBadgeColor();
   setActivePerson(activePerson);
 }

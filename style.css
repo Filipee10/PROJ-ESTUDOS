@@ -22,15 +22,29 @@
   --isabelle:     #ff6fae;
   --isabelle-dim: #e0559a;
   --isabelle-bg:  rgba(255,111,174,0.08);
+  --surface-checked: #0d1a2e;
+
+  /* Cor fixa do nome de quem está logado (no topo) — não muda com o tema
+     da aba que está sendo visualizada, só com quem é o usuário. */
+  --filipe: #4da3ff;
 }
 
 /* Quando o espaço visível é o da Isabelle, o tema do site inteiro vira rosa
-   (recolorindo os mesmos tokens que os componentes já usam). */
+   (recolorindo os mesmos tokens que os componentes já usam, incluindo o
+   fundo e as superfícies — não só botões e destaques). */
 body.theme-isabelle {
-  --blue:     var(--isabelle);
-  --blue-dim: var(--isabelle-dim);
-  --blue-bg:  var(--isabelle-bg);
+  --bg:               #1c0f18;
+  --surface:          #271521;
+  --border:           #452336;
+  --border-hover:     #5c2f48;
+  --blue:             var(--isabelle);
+  --blue-dim:         var(--isabelle-dim);
+  --blue-bg:          var(--isabelle-bg);
+  --surface-checked:  #2a1220;
 }
+
+.user-badge-color-filipe   { color: var(--filipe) !important; }
+.user-badge-color-isabelle { color: var(--isabelle) !important; }
 
 html { -webkit-tap-highlight-color: transparent; }
 
@@ -80,7 +94,6 @@ header h1 span { color: var(--blue); }
 }
 
 .user-badge span {
-  color: var(--blue);
   font-weight: 600;
 }
 
@@ -652,7 +665,7 @@ header h1 span { color: var(--blue); }
 .topic-item:hover { border-color: var(--border-hover); }
 
 .topic-item.checked {
-  background: #0d1a2e;
+  background: var(--surface-checked);
   border-color: var(--blue-dim);
 }
 
