@@ -957,13 +957,13 @@ header h1 span { color: var(--blue); }
 
 .btn-ghost:hover { color: var(--text); border-color: var(--border-hover); }
 
-/* ── Coraçãozinho de clique (Isabelle) ─────────────────── */
+/* ── Coraçãozinho de clique ─────────────────────────────── */
 .click-heart {
   position: fixed;
   left: 0;
   top: 0;
-  width: 26px;
-  height: 24px;
+  width: 38px;
+  height: 35px;
   pointer-events: none;
   z-index: 9999;
   animation: heart-float .9s ease-out forwards;
@@ -977,17 +977,46 @@ header h1 span { color: var(--blue); }
   display: flex;
   align-items: center;
   justify-content: center;
-  padding-top: 2px;
-  font-size: 7px;
-  font-weight: 700;
+  padding-top: 3px;
+  font-size: 10px;
+  font-weight: 800;
   letter-spacing: .01em;
   color: #fff;
+  text-shadow: 0 1px 2px rgba(0,0,0,.35);
 }
 
 @keyframes heart-float {
   0%   { transform: translate(-50%, -50%) scale(.4); opacity: 0; }
   18%  { transform: translate(-50%, -50%) scale(1);  opacity: .95; }
   100% { transform: translate(-50%, calc(-50% - 42px)) scale(.85); opacity: 0; }
+}
+
+/* ── Coraçãozinho fixo (easter egg no rodapé) ──────────────── */
+.page-heart-signature {
+  position: relative;
+  width: 26px;
+  height: 24px;
+  margin: 48px auto 0;
+  opacity: .16;
+  transition: opacity .2s;
+  user-select: none;
+}
+
+.page-heart-signature:hover { opacity: .4; }
+
+.page-heart-signature svg { width: 100%; height: 100%; fill: var(--isabelle); }
+
+.page-heart-signature span {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-top: 2px;
+  font-size: 7px;
+  font-weight: 800;
+  letter-spacing: .01em;
+  color: #fff;
 }
 
 /* ── Scrollbar ────────────────────────────────────────── */

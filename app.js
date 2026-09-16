@@ -858,18 +858,38 @@ studyForm.addEventListener("submit", async (e) => {
 // ─── Coraçãozinho de clique ────────────────────────────────────────────────────
 // Por enquanto aparece pra quem estiver logado (Filipe ou Isabelle) — o Filipe,
 // como admin, pediu para ver tudo por ora; dá pra restringir de novo depois.
-document.addEventListener("click", (e) => {
-  if (!currentUser) return;
+//
+// Usa Pointer Events (funciona igual pra mouse e toque) em vez de "click":
+// no celular, um simples "click" no documento às vezes não dispara de forma
+// confiável (ex: ao tocar em áreas sem elemento interativo). Aqui a gente
+// mede o próprio toque — do dedo encostar até soltar — e só considera "toque"
+// (e não um arrasto ou rolagem da página) se o dedo não se moveu muito.
+function spawnClickHeart(x, y) {
   const heart = document.createElement("div");
   heart.className = "click-heart";
-  heart.style.left = e.clientX + "px";
-  heart.style.top  = e.clientY + "px";
+  heart.style.left = x + "px";
+  heart.style.top  = y + "px";
   heart.innerHTML = `
     <svg viewBox="0 0 32 29"><path d="M23.6 0c-3.4 0-6.3 2-7.6 5-1.3-3-4.2-5-7.6-5C3.4 0 0 3.4 0 7.6c0 8.2 9.5 12.9 16 19.4 6.5-6.5 16-11.1 16-19.4C32 3.4 28.6 0 23.6 0z"/></svg>
     <span>F+I</span>
   `;
   document.body.appendChild(heart);
   heart.addEventListener("animationend", () => heart.remove());
+}
+
+let heartTouchStart = null;
+
+document.addEventListener("pointerdown", (e) => {
+  heartTouchStart = { x: e.clientX, y: e.clientY, t: Date.now() };
+});
+
+document.addEventListener("pointerup", (e) => {
+  if (!currentUser || !heartTouchStart) return;
+  const moved   = Math.hypot(e.clientX - heartTouchStart.x, e.clientY - heartTouchStart.y);
+  const elapsed = Date.now() - heartTouchStart.t;
+  heartTouchStart = null;
+  if (moved > 12 || elapsed > 600) return; // foi um arrasto/rolagem, não um toque
+  spawnClickHeart(e.clientX, e.clientY);
 });
 
 // ─── Utilitários ──────────────────────────────────────────────────────────────
