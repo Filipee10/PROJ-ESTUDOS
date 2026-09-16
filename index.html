@@ -10,14 +10,52 @@
 </head>
 <body>
 
-  <!-- Modal: nome do usuário -->
-  <div id="name-modal" class="modal-overlay" style="display:none;">
+  <!-- Modal: login por pessoa -->
+  <div id="login-modal" class="modal-overlay" style="display:none;">
     <div class="modal">
-      <h2>Olá! Como você se chama?</h2>
-      <p>Seu nome vai aparecer nos temas que você adicionar.</p>
-      <form id="name-form">
-        <input type="text" id="name-input" placeholder="Seu nome" maxlength="40" autocomplete="off" />
-        <button type="submit" class="btn-primary">Entrar</button>
+      <div id="login-step-pick">
+        <h2>Quem é você?</h2>
+        <p>Escolha seu perfil para entrar.</p>
+        <div class="person-picker">
+          <button type="button" class="person-choice person-filipe" data-person="filipe">
+            <span class="person-avatar">F</span>
+            Filipe
+          </button>
+          <button type="button" class="person-choice person-isabelle" data-person="isabelle">
+            <span class="person-avatar">I</span>
+            Isabelle
+          </button>
+        </div>
+      </div>
+
+      <div id="login-step-pin" style="display:none;">
+        <h2 id="login-pin-title">Digite seu PIN</h2>
+        <p id="login-pin-subtitle"></p>
+        <form id="login-pin-form">
+          <input type="password" id="login-pin-input" placeholder="PIN (4 a 6 dígitos)" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="off" />
+          <input type="password" id="login-pin-confirm" placeholder="Confirme o PIN" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="off" style="display:none;" />
+          <span class="field-error" id="login-pin-error"></span>
+          <div class="modal-actions">
+            <button type="button" id="login-pin-back" class="btn-ghost">Voltar</button>
+            <button type="submit" class="btn-primary">Entrar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: desbloquear tema -->
+  <div id="unlock-modal" class="modal-overlay" style="display:none;">
+    <div class="modal">
+      <h2>Tema trancado</h2>
+      <p id="unlock-subtitle">Digite o PIN para ver este tema.</p>
+      <form id="unlock-form">
+        <input type="password" id="unlock-pin-input" placeholder="PIN" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="off" />
+        <span class="field-error" id="unlock-pin-error"></span>
+        <div class="modal-actions">
+          <button type="button" id="unlock-cancel" class="btn-ghost">Cancelar</button>
+          <button type="submit" class="btn-primary">Desbloquear</button>
+        </div>
       </form>
     </div>
   </div>
@@ -59,13 +97,30 @@
       <h1>Estudos <span>pessoais</span></h1>
       <div class="user-badge">
         <span id="user-name-display"></span>
-        <button id="change-name-btn">trocar</button>
+        <button id="logout-btn">sair</button>
       </div>
     </div>
   </header>
 
   <div class="layout">
     <div class="main-col">
+      <!-- Abas por pessoa -->
+      <div class="person-tabs-wrapper">
+        <div class="person-tabs" id="person-tabs">
+          <button class="person-tab person-tab-filipe" data-person="filipe">
+            <span class="person-tab-dot"></span> Filipe
+          </button>
+          <button class="person-tab person-tab-isabelle" data-person="isabelle">
+            <span class="person-tab-dot"></span> Isabelle
+          </button>
+        </div>
+      </div>
+
+      <div id="readonly-banner" class="readonly-banner" style="display:none;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        Você está vendo o espaço de <strong id="readonly-person-name"></strong> — somente leitura.
+      </div>
+
       <!-- Tabs -->
       <div class="tabs-wrapper">
         <div class="tabs">
