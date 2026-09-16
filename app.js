@@ -31,10 +31,8 @@ function hashPin(personId, pin) { return simpleHash(`${personId}:${pin}`); }
 
 // ─── Coleções ────────────────────────────────────────────────────────────────
 const studyRef  = collection(db, "study");
-const ideasRef  = collection(db, "ideas");
 const notesRef  = collection(db, "standalone-notes");
 const qStudy    = query(studyRef, orderBy("createdAt", "asc"));
-const qIdeas    = query(ideasRef, orderBy("createdAt", "asc"));
 const qNotes    = query(notesRef, orderBy("updatedAt", "desc"));
 
 // ─── Elementos: login ──────────────────────────────────────────────────────────
@@ -76,10 +74,6 @@ const linkLabelInput  = document.getElementById("link-label");
 const linkUrlInput    = document.getElementById("link-url");
 const linkCancelBtn   = document.getElementById("link-cancel");
 
-const tabs            = document.querySelectorAll(".tab");
-const panelStudy      = document.getElementById("panel-study");
-const panelIdeas      = document.getElementById("panel-ideas");
-
 const studyForm       = document.getElementById("study-form");
 const studyFormCard   = studyForm.closest(".form-card");
 const studyTitleInput = document.getElementById("study-title");
@@ -87,15 +81,6 @@ const studyList       = document.getElementById("study-list");
 const studyEmpty      = document.getElementById("study-empty");
 const studyTotal      = document.getElementById("study-total");
 const studyDone       = document.getElementById("study-done");
-const studyBadge      = document.getElementById("study-badge");
-
-const ideasForm       = document.getElementById("ideas-form");
-const ideasFormCard   = ideasForm.closest(".form-card");
-const ideasTitleInput = document.getElementById("ideas-title");
-const ideasList       = document.getElementById("ideas-list");
-const ideasEmpty      = document.getElementById("ideas-empty");
-const ideasTotal      = document.getElementById("ideas-total");
-const ideasBadge      = document.getElementById("ideas-badge");
 
 const notesPanel          = document.getElementById("notes-panel");
 const newNoteBtn          = document.getElementById("new-note-btn");
@@ -105,6 +90,7 @@ const notesEditorBadge    = document.getElementById("notes-editor-badge");
 const notesEditorTitle    = document.getElementById("notes-editor-title");
 const notesEditorClose    = document.getElementById("notes-editor-close");
 const notesEditorTextarea = document.getElementById("notes-editor-textarea");
+const notesEditorLinks    = document.getElementById("notes-editor-links");
 const notesEditorStatus   = document.getElementById("notes-editor-status");
 const notesRecentList     = document.getElementById("notes-recent-list");
 const notesRecentEmpty    = document.getElementById("notes-recent-empty");
@@ -220,12 +206,6 @@ logoutBtn.addEventListener("click", () => {
   showLoginModal();
 });
 
-if (!currentUser) {
-  showLoginModal();
-} else {
-  userNameDisplay.textContent = PEOPLE[currentUser];
-}
-
 // ─── Abas por pessoa ─────────────────────────────────────────────────────────
 personTabBtns.forEach((btn) => {
   btn.addEventListener("click", () => setActivePerson(btn.dataset.person));
@@ -236,20 +216,17 @@ function setActivePerson(personId) {
   closeNotesEditor();
 
   personTabBtns.forEach((b) => b.classList.toggle("active", b.dataset.person === personId));
+  document.body.classList.toggle("theme-isabelle", personId === "isabelle");
 
   const isOwn = personId === currentUser;
   readonlyBanner.style.display = isOwn ? "none" : "flex";
   readonlyPersonName.textContent = PEOPLE[personId];
   studyFormCard.style.display = isOwn ? "" : "none";
-  ideasFormCard.style.display = isOwn ? "" : "none";
   newNoteBtn.style.display    = isOwn ? "" : "none";
 
   renderStudyList();
-  renderIdeasList();
   renderNotesRecent();
 }
-
-if (currentUser) setActivePerson(activePerson);
 
 // ─── Trancar / destrancar temas ────────────────────────────────────────────────
 let unlockedSet;
@@ -293,7 +270,6 @@ unlockForm.addEventListener("submit", async (e) => {
       markUnlocked(unlockTarget.colName, unlockTarget.id);
       closeUnlockModal();
       renderStudyList();
-      renderIdeasList();
       renderNotesRecent();
     } else {
       unlockPinError.textContent = "PIN incorreto.";
@@ -304,17 +280,6 @@ unlockForm.addEventListener("submit", async (e) => {
     console.error("Erro ao verificar PIN:", err);
     unlockPinError.textContent = "Erro ao verificar o PIN.";
   }
-});
-
-// ─── Tabs (Lista de estudo / Ideias) ───────────────────────────────────────────
-tabs.forEach((tab) => {
-  tab.addEventListener("click", () => {
-    tabs.forEach((t) => t.classList.remove("active"));
-    tab.classList.add("active");
-    const target = tab.dataset.tab;
-    panelStudy.style.display = target === "study" ? "block" : "none";
-    panelIdeas.style.display = target === "ideas"  ? "block" : "none";
-  });
 });
 
 // ─── Modal: editar título ─────────────────────────────────────────────────────
@@ -341,9 +306,8 @@ editForm.addEventListener("submit", async (e) => {
   e.preventDefault();
   const title = editTitleInput.value.trim();
   if (!title) return;
-  const colName = editingType === "study" ? "study" : "ideas";
   try {
-    await updateDoc(doc(db, colName, editingId), { title });
+    await updateDoc(doc(db, "study", editingId), { title });
     closeEditModal();
   } catch (err) { console.error("Erro ao editar:", err); }
 });
@@ -375,13 +339,8 @@ linkForm.addEventListener("submit", async (e) => {
   const label = linkLabelInput.value.trim();
   if (!url) return;
 
-  const colName = linkTargetType === "study" ? "study" : "ideas";
-  const docRef  = doc(db, colName, linkTargetId);
-
-  const current = linkTargetType === "study"
-    ? studyCache.find((t) => t.id === linkTargetId)
-    : ideasCache.find((t) => t.id === linkTargetId);
-
+  const docRef  = doc(db, "study", linkTargetId);
+  const current = studyCache.find((t) => t.id === linkTargetId);
   const links = current?.links ? [...current.links] : [];
   links.push({ url, label: label || url, checked: false });
 
@@ -393,17 +352,17 @@ linkForm.addEventListener("submit", async (e) => {
 
 // ─── Cache local dos snapshots ────────────────────────────────────────────────
 let studyCache          = [];
-let ideasCache          = [];
 let standaloneNotesCache = [];
 
 // ─── Painel de anotações (lateral) ─────────────────────────────────────────────
+// Abrir um tema mostra, juntos: a anotação geral do tema e a anotação de
+// cada pesquisa (link) daquele tema — tudo numa área só.
 // activeNote:
-//   { kind: "topic",  type: "study"|"ideas", id }
-//   { kind: "link",   type: "study"|"ideas", topicId, idx }
+//   { kind: "topic", id }
 //   { kind: "standalone", id: string|null }
-let activeNote = null;
-let noteReadOnly = false;
-let notesSaveTimer = null;
+let activeNote      = null;
+let noteReadOnly    = false;
+let notesSaveTimer  = null;
 let statusFlashTimer = null;
 
 function hasNotesContent(text) { return !!(text && text.trim().length > 0); }
@@ -414,41 +373,79 @@ function flashNotesStatus(text) {
   if (text) statusFlashTimer = setTimeout(() => { notesEditorStatus.textContent = ""; }, 1500);
 }
 
-function openTopicNote(type, id, title, isOwn) {
-  activeNote = { kind: "topic", type, id };
+// Mostra a anotação geral do tema e, logo abaixo, um bloco de anotação
+// para cada pesquisa (link) do mesmo tema — tudo junto, numa área só.
+function openTopicNote(id, title, isOwn, focusLinkIdx) {
+  activeNote = { kind: "topic", id };
   noteReadOnly = !isOwn;
-  const cache = type === "study" ? studyCache : ideasCache;
-  const topic = cache.find((t) => t.id === id);
+  const topic = studyCache.find((t) => t.id === id);
 
   notesEditorBadge.style.display = "";
   notesEditorBadge.textContent   = title + (noteReadOnly ? " (somente leitura)" : "");
   notesEditorTitle.style.display = "none";
   notesEditorTextarea.value      = topic?.notes || "";
   notesEditorTextarea.readOnly   = noteReadOnly;
+  notesEditorTextarea.placeholder = "Anotação geral sobre este tema...";
   flashNotesStatus("");
+
+  renderNotesEditorLinks(topic, isOwn, focusLinkIdx);
 
   notesDropzone.style.display = "none";
   notesEditor.style.display   = "flex";
 }
 
-function openLinkNote(type, topicId, idx, isOwn) {
-  const cache = type === "study" ? studyCache : ideasCache;
-  const topic = cache.find((t) => t.id === topicId);
-  const link  = topic?.links?.[idx];
-  if (!topic || !link) return;
+function renderNotesEditorLinks(topic, isOwn, focusLinkIdx) {
+  notesEditorLinks.innerHTML = "";
+  const links = topic?.links || [];
+  if (links.length === 0) {
+    notesEditorLinks.style.display = "none";
+    return;
+  }
+  notesEditorLinks.style.display = "flex";
 
-  activeNote = { kind: "link", type, topicId, idx };
-  noteReadOnly = !isOwn;
+  links.forEach((link, idx) => {
+    const block = document.createElement("div");
+    block.className = "link-note-block";
+    block.innerHTML = `
+      <div class="link-note-block-header">
+        <a href="${escapeHtml(link.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(link.label || link.url)}</a>
+      </div>
+      <textarea class="link-note-block-textarea" placeholder="Anotação sobre esta pesquisa..."></textarea>
+    `;
+    const textarea = block.querySelector("textarea");
+    textarea.value = link.notes || "";
+    textarea.readOnly = !isOwn;
+    if (isOwn) wireLinkNoteAutosave(textarea, topic.id, idx);
+    notesEditorLinks.appendChild(block);
 
-  notesEditorBadge.style.display = "";
-  notesEditorBadge.textContent   = `${topic.title} › ${link.label || link.url}` + (noteReadOnly ? " (somente leitura)" : "");
-  notesEditorTitle.style.display = "none";
-  notesEditorTextarea.value      = link.notes || "";
-  notesEditorTextarea.readOnly   = noteReadOnly;
-  flashNotesStatus("");
+    if (focusLinkIdx === idx) {
+      setTimeout(() => {
+        block.scrollIntoView({ behavior: "smooth", block: "center" });
+        textarea.focus();
+      }, 60);
+    }
+  });
+}
 
-  notesDropzone.style.display = "none";
-  notesEditor.style.display   = "flex";
+function wireLinkNoteAutosave(textarea, topicId, idx) {
+  let timer;
+  textarea.addEventListener("input", () => {
+    flashNotesStatus("Salvando…");
+    clearTimeout(timer);
+    timer = setTimeout(async () => {
+      try {
+        const topic = studyCache.find((t) => t.id === topicId);
+        if (!topic || !topic.links?.[idx]) return;
+        const links = [...topic.links];
+        links[idx] = { ...links[idx], notes: textarea.value };
+        await updateDoc(doc(db, "study", topicId), { links });
+        flashNotesStatus("Salvo");
+      } catch (err) {
+        console.error("Erro ao salvar anotação da pesquisa:", err);
+        flashNotesStatus("Erro ao salvar");
+      }
+    }, 600);
+  });
 }
 
 function openStandaloneNote(note) {
@@ -460,7 +457,11 @@ function openStandaloneNote(note) {
   notesEditorTitle.value         = note?.title || "";
   notesEditorTextarea.value      = note?.content || "";
   notesEditorTextarea.readOnly   = false;
+  notesEditorTextarea.placeholder = "Escreva sua anotação aqui...";
   flashNotesStatus("");
+
+  notesEditorLinks.innerHTML = "";
+  notesEditorLinks.style.display = "none";
 
   notesDropzone.style.display = "none";
   notesEditor.style.display   = "flex";
@@ -477,6 +478,8 @@ function closeNotesEditor() {
   notesEditorTextarea.value = "";
   notesEditorTitle.value    = "";
   notesEditorTextarea.readOnly = false;
+  notesEditorLinks.innerHTML = "";
+  notesEditorLinks.style.display = "none";
 }
 
 function scheduleSaveActiveNote() {
@@ -490,14 +493,7 @@ async function saveActiveNote() {
   if (!activeNote || noteReadOnly) return;
   try {
     if (activeNote.kind === "topic") {
-      await updateDoc(doc(db, activeNote.type, activeNote.id), { notes: notesEditorTextarea.value });
-    } else if (activeNote.kind === "link") {
-      const cache = activeNote.type === "study" ? studyCache : ideasCache;
-      const topic = cache.find((t) => t.id === activeNote.topicId);
-      if (!topic || !topic.links?.[activeNote.idx]) return;
-      const links = [...topic.links];
-      links[activeNote.idx] = { ...links[activeNote.idx], notes: notesEditorTextarea.value };
-      await updateDoc(doc(db, activeNote.type, activeNote.topicId), { links });
+      await updateDoc(doc(db, "study", activeNote.id), { notes: notesEditorTextarea.value });
     } else {
       const title   = notesEditorTitle.value.trim() || "Sem título";
       const content = notesEditorTextarea.value;
@@ -550,8 +546,7 @@ notesPanel.addEventListener("drop", (e) => {
   if (!raw) return;
   try {
     const payload = JSON.parse(raw);
-    if (payload.kind === "link") openLinkNote(payload.type, payload.topicId, payload.idx, true);
-    else openTopicNote(payload.type, payload.id, payload.title, true);
+    openTopicNote(payload.id, payload.title, true);
   } catch (err) { console.error("Erro ao processar o item arrastado:", err); }
 });
 
@@ -567,23 +562,17 @@ function renderNotesRecent() {
     });
   }
 
-  [["study", studyCache], ["ideas", ideasCache]].forEach(([type, cache]) => {
-    cache.forEach((t) => {
-      if (ownerOf(t) !== activePerson) return;
-      const locked = !!t.locked && !isOwnActive && !isUnlocked(type, t.id);
-      if (locked) return;
-      if (hasNotesContent(t.notes)) {
-        items.push({ kind: "topic", type, id: t.id, title: t.title, preview: t.notes, isOwn: isOwnActive });
-      }
-      (t.links || []).forEach((link, idx) => {
-        if (!hasNotesContent(link.notes)) return;
-        items.push({
-          kind: "link", type, topicId: t.id, idx,
-          title: `${t.title} › ${link.label || link.url}`,
-          preview: link.notes,
-          isOwn: isOwnActive
-        });
-      });
+  studyCache.forEach((t) => {
+    if (ownerOf(t) !== activePerson) return;
+    const locked = !!t.locked && !isOwnActive && !isUnlocked("study", t.id);
+    if (locked) return;
+    const links = t.links || [];
+    const linkWithNotes = links.find((l) => hasNotesContent(l.notes));
+    if (!hasNotesContent(t.notes) && !linkWithNotes) return;
+    items.push({
+      kind: "topic", id: t.id, title: t.title,
+      preview: hasNotesContent(t.notes) ? t.notes : linkWithNotes.notes,
+      isOwn: isOwnActive
     });
   });
 
@@ -594,8 +583,7 @@ function renderNotesRecent() {
     const li = document.createElement("li");
     const isActive = activeNote
       && ((item.kind === "standalone" && activeNote.kind === "standalone" && activeNote.id === item.id)
-        || (item.kind === "topic" && activeNote.kind === "topic" && activeNote.type === item.type && activeNote.id === item.id)
-        || (item.kind === "link" && activeNote.kind === "link" && activeNote.type === item.type && activeNote.topicId === item.topicId && activeNote.idx === item.idx));
+        || (item.kind === "topic" && activeNote.kind === "topic" && activeNote.id === item.id));
 
     li.className = "notes-recent-item" + (isActive ? " active" : "");
     li.innerHTML = `
@@ -612,10 +600,8 @@ function renderNotesRecent() {
       if (item.kind === "standalone") {
         const note = standaloneNotesCache.find((n) => n.id === item.id);
         if (note) openStandaloneNote(note);
-      } else if (item.kind === "link") {
-        openLinkNote(item.type, item.topicId, item.idx, item.isOwn);
       } else {
-        openTopicNote(item.type, item.id, item.title, item.isOwn);
+        openTopicNote(item.id, item.title, item.isOwn);
       }
     };
     li.addEventListener("click", openThis);
@@ -652,7 +638,6 @@ function renderStudyList() {
 
   studyList.innerHTML = "";
   studyTotal.textContent = items.length;
-  studyBadge.textContent = items.length;
   const done = items.filter((t) => isAllChecked(t)).length;
   studyDone.textContent = done;
   studyEmpty.style.display = items.length === 0 ? "flex" : "none";
@@ -783,8 +768,7 @@ function renderStudyItem(topic, isOwn) {
     catch (err) { console.error("Erro ao trancar/destrancar tema:", err); }
   });
   li.querySelector(".delete-btn")?.addEventListener("click", () => {
-    if (activeNote?.type === "study" && activeNote.id === topic.id && activeNote.kind === "topic") closeNotesEditor();
-    if (activeNote?.type === "study" && activeNote.topicId === topic.id && activeNote.kind === "link") closeNotesEditor();
+    if (activeNote?.kind === "topic" && activeNote.id === topic.id) closeNotesEditor();
     deleteDoc(doc(db, "study", topic.id));
   });
 
@@ -795,25 +779,24 @@ function renderStudyItem(topic, isOwn) {
   li.querySelectorAll(".link-delete").forEach((btn) => {
     btn.addEventListener("click", () => {
       const idx = parseInt(btn.dataset.idx);
-      if (activeNote?.kind === "link" && activeNote.type === "study" && activeNote.topicId === topic.id) closeNotesEditor();
       deleteLink(topic, idx, "study");
     });
   });
 
   li.querySelectorAll(".link-note").forEach((btn) => {
     btn.addEventListener("click", () => {
-      openLinkNote("study", topic.id, parseInt(btn.dataset.idx), isOwn);
+      openTopicNote(topic.id, topic.title, isOwn, parseInt(btn.dataset.idx));
       if (window.innerWidth <= 860) notesPanel.scrollIntoView({ behavior: "smooth", block: "start" });
     });
   });
 
   li.querySelector(".btn-notes")?.addEventListener("click", () => {
-    openTopicNote("study", topic.id, topic.title, isOwn);
+    openTopicNote(topic.id, topic.title, isOwn);
     if (window.innerWidth <= 860) notesPanel.scrollIntoView({ behavior: "smooth", block: "start" });
   });
 
   li.addEventListener("dragstart", (e) => {
-    e.dataTransfer.setData("application/json", JSON.stringify({ id: topic.id, type: "study", title: topic.title }));
+    e.dataTransfer.setData("application/json", JSON.stringify({ id: topic.id, title: topic.title }));
     e.dataTransfer.effectAllowed = "copy";
     li.classList.add("dragging");
   });
@@ -835,159 +818,6 @@ async function deleteLink(topic, idx, colName) {
   try {
     await updateDoc(doc(db, colName, topic.id), { links });
   } catch (err) { console.error("Erro ao remover link:", err); }
-}
-
-// ─── Snapshot: Ideias ─────────────────────────────────────────────────────────
-onSnapshot(qIdeas, (snapshot) => {
-  ideasCache = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
-  renderIdeasList();
-  renderNotesRecent();
-});
-
-function renderIdeasList() {
-  const items = ideasCache.filter((t) => ownerOf(t) === activePerson);
-  const isOwn = activePerson === currentUser;
-
-  ideasList.innerHTML = "";
-  ideasTotal.textContent = items.length;
-  ideasBadge.textContent = items.length;
-  ideasEmpty.style.display = items.length === 0 ? "flex" : "none";
-  items.forEach((t) => ideasList.appendChild(renderIdeaItem(t, isOwn)));
-}
-
-function renderIdeaItem(topic, isOwn) {
-  const links    = topic.links || [];
-  const hasLink  = links.length > 0;
-  const hasNotes = hasNotesContent(topic.notes);
-  const locked   = !!topic.locked;
-  const showLocked = locked && !isOwn && !isUnlocked("ideas", topic.id);
-
-  const li       = document.createElement("li");
-  li.className   = "topic-item" + (showLocked ? " locked-card" : "");
-  li.draggable   = isOwn;
-
-  const actionsHtml = isOwn ? `
-        <button class="btn-notes${hasNotes ? " has-notes" : ""}" aria-label="Anotações">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v12H8l-4 4V4z"/></svg>
-          Notas
-        </button>
-        <button class="btn-move${hasLink ? "" : " disabled"}" ${hasLink ? "" : "disabled"} aria-label="Mover para lista">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
-          </svg>
-          Mover
-        </button>
-        <button class="btn-add-link" aria-label="Adicionar link">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          Link
-        </button>
-        <button class="btn-icon btn-lock${locked ? " is-locked" : ""}" aria-label="${locked ? "Destrancar" : "Trancar"} tema">
-          ${svgLock(locked)}
-        </button>
-        <button class="btn-icon edit-btn" aria-label="Editar">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-          </svg>
-        </button>
-        <button class="btn-icon delete-btn" aria-label="Remover">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="3 6 5 6 21 6"/>
-            <path d="M19 6l-1 14H6L5 6"/>
-            <path d="M10 11v6M14 11v6M9 6V4h6v2"/>
-          </svg>
-        </button>
-  ` : (hasNotes ? `
-        <button class="btn-notes has-notes" aria-label="Anotações">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v12H8l-4 4V4z"/></svg>
-          Notas
-        </button>` : "");
-
-  const bodyHtml = `
-    <div class="topic-header">
-      <div class="idea-dot"></div>
-      <div class="topic-header-info">
-        <span class="topic-title">${escapeHtml(topic.title)}</span>
-        <span class="topic-author">por ${escapeHtml(topic.addedBy || PEOPLE[ownerOf(topic)])}</span>
-      </div>
-      <div class="topic-header-actions">${actionsHtml}</div>
-    </div>
-    ${linksListHtml(links, isOwn)}
-  `;
-
-  li.innerHTML = showLocked
-    ? `<div class="locked-content">${bodyHtml}</div>${lockedOverlayHtml(topic)}`
-    : bodyHtml;
-
-  if (showLocked) {
-    li.querySelector(".btn-unlock")?.addEventListener("click", () => openUnlockModal("ideas", topic));
-    return li;
-  }
-
-  if (isOwn && hasLink) {
-    li.querySelector(".btn-move")?.addEventListener("click", () => moveToStudy(topic));
-  }
-  li.querySelector(".btn-add-link")?.addEventListener("click", () => openLinkModal(topic.id, "ideas"));
-  li.querySelector(".edit-btn")?.addEventListener("click", () => openEditModal(topic.id, "ideas", topic.title));
-  li.querySelector(".btn-lock")?.addEventListener("click", async () => {
-    try { await updateDoc(doc(db, "ideas", topic.id), { locked: !locked }); }
-    catch (err) { console.error("Erro ao trancar/destrancar tema:", err); }
-  });
-  li.querySelector(".delete-btn")?.addEventListener("click", () => {
-    if (activeNote?.type === "ideas" && activeNote.id === topic.id && activeNote.kind === "topic") closeNotesEditor();
-    if (activeNote?.type === "ideas" && activeNote.topicId === topic.id && activeNote.kind === "link") closeNotesEditor();
-    deleteDoc(doc(db, "ideas", topic.id));
-  });
-
-  li.querySelectorAll(".link-delete").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const idx = parseInt(btn.dataset.idx);
-      if (activeNote?.kind === "link" && activeNote.type === "ideas" && activeNote.topicId === topic.id) closeNotesEditor();
-      deleteLink(topic, idx, "ideas");
-    });
-  });
-
-  li.querySelectorAll(".link-note").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      openLinkNote("ideas", topic.id, parseInt(btn.dataset.idx), isOwn);
-      if (window.innerWidth <= 860) notesPanel.scrollIntoView({ behavior: "smooth", block: "start" });
-    });
-  });
-
-  li.querySelector(".btn-notes")?.addEventListener("click", () => {
-    openTopicNote("ideas", topic.id, topic.title, isOwn);
-    if (window.innerWidth <= 860) notesPanel.scrollIntoView({ behavior: "smooth", block: "start" });
-  });
-
-  li.addEventListener("dragstart", (e) => {
-    e.dataTransfer.setData("application/json", JSON.stringify({ id: topic.id, type: "ideas", title: topic.title }));
-    e.dataTransfer.effectAllowed = "copy";
-    li.classList.add("dragging");
-  });
-  li.addEventListener("dragend", () => li.classList.remove("dragging"));
-
-  return li;
-}
-
-async function moveToStudy(topic) {
-  try {
-    await addDoc(studyRef, {
-      title:     topic.title,
-      links:     topic.links || [],
-      notes:     topic.notes || "",
-      owner:     ownerOf(topic),
-      locked:    topic.locked || false,
-      addedBy:   topic.addedBy,
-      createdAt: serverTimestamp()
-    });
-    await deleteDoc(doc(db, "ideas", topic.id));
-    if (activeNote?.type === "ideas" && activeNote.id === topic.id && activeNote.kind === "topic") closeNotesEditor();
-    if (activeNote?.type === "ideas" && activeNote.topicId === topic.id && activeNote.kind === "link") closeNotesEditor();
-    tabs.forEach((t) => t.classList.remove("active"));
-    document.querySelector('[data-tab="study"]').classList.add("active");
-    panelStudy.style.display = "block";
-    panelIdeas.style.display = "none";
-  } catch (err) { console.error("Erro ao mover:", err); }
 }
 
 // ─── Adicionar tema na lista de estudo ────────────────────────────────────────
@@ -1013,27 +843,19 @@ studyForm.addEventListener("submit", async (e) => {
   finally { btn.disabled = false; }
 });
 
-// ─── Adicionar ideia ──────────────────────────────────────────────────────────
-ideasForm.addEventListener("submit", async (e) => {
-  e.preventDefault();
-  if (activePerson !== currentUser) return;
-  const title = ideasTitleInput.value.trim();
-  if (!title) return;
-  const btn = ideasForm.querySelector("button[type='submit']");
-  btn.disabled = true;
-  try {
-    await addDoc(ideasRef, {
-      title,
-      links:     [],
-      owner:     currentUser,
-      locked:    false,
-      addedBy:   PEOPLE[currentUser] || "Anônimo",
-      createdAt: serverTimestamp()
-    });
-    ideasTitleInput.value = "";
-    ideasTitleInput.focus();
-  } catch (err) { console.error("Erro ao adicionar ideia:", err); }
-  finally { btn.disabled = false; }
+// ─── Coraçãozinho de clique (só quando a Isabelle está logada) ────────────────
+document.addEventListener("click", (e) => {
+  if (currentUser !== "isabelle") return;
+  const heart = document.createElement("div");
+  heart.className = "click-heart";
+  heart.style.left = e.clientX + "px";
+  heart.style.top  = e.clientY + "px";
+  heart.innerHTML = `
+    <svg viewBox="0 0 32 29"><path d="M23.6 0c-3.4 0-6.3 2-7.6 5-1.3-3-4.2-5-7.6-5C3.4 0 0 3.4 0 7.6c0 8.2 9.5 12.9 16 19.4 6.5-6.5 16-11.1 16-19.4C32 3.4 28.6 0 23.6 0z"/></svg>
+    <span>F+I</span>
+  `;
+  document.body.appendChild(heart);
+  heart.addEventListener("animationend", () => heart.remove());
 });
 
 // ─── Utilitários ──────────────────────────────────────────────────────────────
@@ -1042,4 +864,16 @@ function escapeHtml(str) {
   const div = document.createElement("div");
   div.appendChild(document.createTextNode(str));
   return div.innerHTML;
+}
+
+// ─── Inicialização ──────────────────────────────────────────────────────────────
+// Fica no final do arquivo de propósito: se já existir uma pessoa logada
+// (localStorage), isso chama setActivePerson() de forma síncrona, e essa
+// função usa muita coisa (cache, DOM, etc.) que só está pronta depois que
+// o módulo inteiro terminou de ser avaliado uma vez.
+if (!currentUser) {
+  showLoginModal();
+} else {
+  userNameDisplay.textContent = PEOPLE[currentUser];
+  setActivePerson(activePerson);
 }

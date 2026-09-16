@@ -24,6 +24,14 @@
   --isabelle-bg:  rgba(255,111,174,0.08);
 }
 
+/* Quando o espaço visível é o da Isabelle, o tema do site inteiro vira rosa
+   (recolorindo os mesmos tokens que os componentes já usam). */
+body.theme-isabelle {
+  --blue:     var(--isabelle);
+  --blue-dim: var(--isabelle-dim);
+  --blue-bg:  var(--isabelle-bg);
+}
+
 html { -webkit-tap-highlight-color: transparent; }
 
 body {
@@ -76,7 +84,7 @@ header h1 span { color: var(--blue); }
   font-weight: 600;
 }
 
-#change-name-btn {
+#logout-btn {
   background: none;
   border: 1px solid var(--border);
   color: var(--text-muted);
@@ -210,58 +218,6 @@ header h1 span { color: var(--blue); }
   color: var(--danger);
   min-height: 14px;
 }
-
-/* ── Tabs ────────────────────────────────────────────── */
-.tabs-wrapper {
-  width: 100%;
-  max-width: 680px;
-  margin-bottom: 20px;
-}
-
-.tabs {
-  display: flex;
-  gap: 4px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 4px;
-}
-
-.tab {
-  flex: 1;
-  background: none;
-  border: none;
-  color: var(--text-muted);
-  font-family: inherit;
-  font-size: 0.88rem;
-  font-weight: 500;
-  padding: 9px 12px;
-  border-radius: 7px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  transition: color .15s, background .15s;
-  white-space: nowrap;
-}
-
-.tab:hover { color: var(--text); }
-.tab.active { background: var(--navy); color: var(--text); }
-
-.tab-badge {
-  background: var(--border);
-  color: var(--text-muted);
-  border-radius: 20px;
-  font-size: 0.72rem;
-  font-weight: 600;
-  padding: 1px 7px;
-  min-width: 22px;
-  text-align: center;
-  transition: background .15s, color .15s;
-}
-
-.tab.active .tab-badge { background: var(--blue-dim); color: #fff; }
 
 /* ── Panel ───────────────────────────────────────────── */
 .panel {
@@ -550,6 +506,49 @@ header h1 span { color: var(--blue); }
   min-height: 14px;
 }
 
+/* ── Anotações por pesquisa (links) dentro do tema ─────── */
+.notes-editor-links {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+
+.link-note-block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.link-note-block-header a {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--blue);
+  text-decoration: none;
+  word-break: break-word;
+}
+.link-note-block-header a:hover { text-decoration: underline; }
+
+.link-note-block-textarea {
+  width: 100%;
+  min-height: 70px;
+  resize: vertical;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  padding: 8px 10px;
+  outline: none;
+  transition: border-color .15s;
+}
+
+.link-note-block-textarea::placeholder { color: var(--text-muted); }
+.link-note-block-textarea:focus { border-color: var(--blue-dim); }
+
 .notes-recent {
   display: flex;
   flex-direction: column;
@@ -613,27 +612,6 @@ header h1 span { color: var(--blue); }
 /* ── Drag de cards de tema ─────────────────────────────── */
 .topic-item[draggable="true"] { cursor: grab; }
 .topic-item.dragging { opacity: .45; }
-
-.btn-move {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  background: none;
-  border: 1px solid var(--border);
-  color: var(--text-muted);
-  border-radius: 6px;
-  padding: 5px 10px;
-  font-family: inherit;
-  font-size: 0.76rem;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: color .15s, border-color .15s, background .15s;
-  -webkit-appearance: none;
-}
-
-.btn-move svg { width: 13px; height: 13px; flex-shrink: 0; }
-.btn-move:hover:not(.disabled) { color: var(--blue); border-color: var(--blue-dim); background: var(--blue-bg); }
-.btn-move.disabled { opacity: .35; cursor: not-allowed; }
 
 /* ── List meta ───────────────────────────────────────── */
 .list-meta {
@@ -708,17 +686,6 @@ header h1 span { color: var(--blue); }
 
 .topic-status svg { width: 12px; height: 12px; }
 .topic-status.done { background: var(--blue); border-color: var(--blue); color: #0b1220; }
-
-/* idea dot */
-.idea-dot {
-  width: 8px;
-  height: 8px;
-  min-width: 8px;
-  border-radius: 50%;
-  background: var(--navy);
-  border: 2px solid var(--border);
-  flex-shrink: 0;
-}
 
 .topic-header-info {
   flex: 1;
@@ -977,6 +944,39 @@ header h1 span { color: var(--blue); }
 
 .btn-ghost:hover { color: var(--text); border-color: var(--border-hover); }
 
+/* ── Coraçãozinho de clique (Isabelle) ─────────────────── */
+.click-heart {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 26px;
+  height: 24px;
+  pointer-events: none;
+  z-index: 9999;
+  animation: heart-float .9s ease-out forwards;
+}
+
+.click-heart svg { width: 100%; height: 100%; fill: var(--isabelle); }
+
+.click-heart span {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-top: 2px;
+  font-size: 7px;
+  font-weight: 700;
+  letter-spacing: .01em;
+  color: #fff;
+}
+
+@keyframes heart-float {
+  0%   { transform: translate(-50%, -50%) scale(.4); opacity: 0; }
+  18%  { transform: translate(-50%, -50%) scale(1);  opacity: .95; }
+  100% { transform: translate(-50%, calc(-50% - 42px)) scale(.85); opacity: 0; }
+}
+
 /* ── Scrollbar ────────────────────────────────────────── */
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: var(--bg); }
@@ -1001,7 +1001,7 @@ header h1 span { color: var(--blue); }
   .topic-header { padding: 11px 12px; gap: 8px; }
   .topic-header-actions { gap: 2px; }
 
-  .btn-add-link, .btn-move { font-size: 0.72rem; padding: 4px 8px; }
+  .btn-add-link { font-size: 0.72rem; padding: 4px 8px; }
 
   .link-item { padding: 9px 12px; }
 
@@ -1010,6 +1010,5 @@ header h1 span { color: var(--blue); }
 }
 
 @media (max-width: 340px) {
-  .tabs { flex-direction: column; }
   .topic-header-actions { flex-wrap: wrap; justify-content: flex-end; }
 }
