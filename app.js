@@ -1303,6 +1303,7 @@ const photoModal         = document.getElementById("photo-modal");
 const photoModalClose    = document.getElementById("photo-modal-close");
 const photoModalImg      = document.getElementById("photo-modal-img");
 const photoModalFallback = document.getElementById("photo-modal-fallback");
+const photoModalAudio    = document.getElementById("photo-modal-audio");
 const pageHeartSignature = document.getElementById("page-heart-signature");
 
 function showPhotoFallback() {
@@ -1318,8 +1319,17 @@ function openPhotoModal() {
 
   const rect = pageHeartSignature.getBoundingClientRect();
   spawnHeartBurst(rect.left + rect.width / 2, rect.top + rect.height / 2);
+
+  // Isso roda direto dentro do clique da pessoa, então o navegador deixa tocar
+  // com som (autoplay "silencioso" sem gesto do usuário é bloqueado, mas isso não é o caso aqui).
+  photoModalAudio.currentTime = 0;
+  photoModalAudio.play().catch((err) => console.error("Erro ao tocar a música:", err));
 }
-function closePhotoModal() { photoModal.style.display = "none"; }
+function closePhotoModal() {
+  photoModal.style.display = "none";
+  photoModalAudio.pause();
+  photoModalAudio.currentTime = 0;
+}
 
 pageHeartSignature.addEventListener("click", openPhotoModal);
 pageHeartSignature.addEventListener("keydown", (e) => {
