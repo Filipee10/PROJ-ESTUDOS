@@ -252,10 +252,35 @@
         </div>
 
         <div class="settings-section">
+          <h2 class="settings-title">Aba "Grupo"</h2>
+          <p class="settings-desc">Aquele espaço compartilhado fixo. Fica escondido por padrão — se quiser um espaço compartilhado, também dá pra criar um grupo com nome próprio.</p>
+          <label class="settings-toggle-row">
+            <input type="checkbox" id="settings-grupo-toggle" />
+            <span class="settings-toggle-switch"></span>
+            <span class="settings-toggle-label">Mostrar a aba Grupo</span>
+          </label>
+        </div>
+
+        <div class="settings-section">
+          <h2 class="settings-title">Música da foto</h2>
+          <label class="settings-toggle-row">
+            <input type="checkbox" id="settings-music-toggle" />
+            <span class="settings-toggle-switch"></span>
+            <span class="settings-toggle-label">Tocar música ao ver a foto</span>
+          </label>
+        </div>
+
+        <div class="settings-section">
           <h2 class="settings-title">Seus grupos</h2>
           <p class="settings-desc">Renomeie, mude quem participa ou remova os grupos compartilhados.</p>
           <div id="settings-groups-list" class="settings-groups-list"></div>
           <button type="button" id="settings-add-group-btn" class="btn-ghost settings-add-group-btn">+ Novo grupo</button>
+        </div>
+
+        <div class="settings-section settings-admin-section" id="settings-admin-section" style="display:none;">
+          <h2 class="settings-title">Administração</h2>
+          <p class="settings-desc">Só quem é administrador vê isto. Um administrador enxerga e edita o espaço de qualquer pessoa e vê todos os grupos, mesmo sem participar deles.</p>
+          <div id="settings-admin-list" class="settings-admin-list"></div>
         </div>
       </div>
     </div>

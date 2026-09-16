@@ -28,21 +28,30 @@ function addedByLabel() {
   return PEOPLE[currentUser] || "Anônimo";
 }
 
-// Filipe é o admin: além do próprio espaço, também enxerga e edita o da Isabelle
-// e qualquer grupo. O espaço "grupo" é compartilhado: os dois sempre podem editar.
-// Um grupo criado nas Configurações só pode ser editado por quem está na lista
-// de participantes dele (e, como sempre, pelo Filipe).
-function canEdit(personId) {
-  if (personId === "grupo") return true;
-  if (personId === "filipe" || personId === "isabelle") return personId === currentUser || currentUser === "filipe";
-  return currentUser === "filipe" || !!groupsCache[personId]?.members?.includes(currentUser);
+// Quem é administrador vem do campo "isAdmin" no perfil de cada um — por
+// padrão (documento antigo, ou campo nunca definido) só o Filipe é admin,
+// mas isso é configurável agora em Configurações > Administração.
+function isAdmin(personId) {
+  const explicit = peopleCache[personId]?.isAdmin;
+  if (typeof explicit === "boolean") return explicit;
+  return personId === "filipe";
 }
 
-// Grupos que a pessoa logada deve ver como aba: Filipe (admin) vê todos;
+// Um administrador enxerga e edita o espaço de qualquer pessoa e qualquer
+// grupo. O espaço "grupo" é compartilhado: os dois sempre podem editar.
+// Um grupo criado nas Configurações só pode ser editado por quem está na
+// lista de participantes dele (e, como sempre, por um administrador).
+function canEdit(personId) {
+  if (personId === "grupo") return true;
+  if (personId === "filipe" || personId === "isabelle") return personId === currentUser || isAdmin(currentUser);
+  return isAdmin(currentUser) || !!groupsCache[personId]?.members?.includes(currentUser);
+}
+
+// Grupos que a pessoa logada deve ver como aba: um administrador vê todos;
 // qualquer outra pessoa só vê os grupos em que está listada como participante.
 function visibleGroups() {
   return Object.values(groupsCache)
-    .filter((g) => currentUser === "filipe" || (g.members || []).includes(currentUser))
+    .filter((g) => isAdmin(currentUser) || (g.members || []).includes(currentUser))
     .sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
 }
 
@@ -111,8 +120,12 @@ const settingsPinSuccess   = document.getElementById("settings-pin-success");
 const settingsColorInput   = document.getElementById("settings-color-input");
 const settingsColorReset   = document.getElementById("settings-color-reset");
 const settingsNotesToggle  = document.getElementById("settings-notes-toggle");
+const settingsGrupoToggle  = document.getElementById("settings-grupo-toggle");
+const settingsMusicToggle  = document.getElementById("settings-music-toggle");
 const settingsGroupsList   = document.getElementById("settings-groups-list");
 const settingsAddGroupBtn  = document.getElementById("settings-add-group-btn");
+const settingsAdminSection = document.getElementById("settings-admin-section");
+const settingsAdminList    = document.getElementById("settings-admin-list");
 
 // ─── Elementos: criar grupo ─────────────────────────────────────────────────────
 const groupModal          = document.getElementById("group-modal");
@@ -275,6 +288,7 @@ function completeLogin(personId) {
   // usa currentUser) — sem refazer isso aqui, trocar de pessoa sem recarregar
   // a página deixaria as abas de grupo da sessão anterior penduradas.
   renderGroupTabs();
+  refreshGrupoTabVisibility();
   setActivePerson(activePerson);
 }
 
@@ -372,6 +386,17 @@ function renderGroupTabs() {
     </button>
   `).join("");
   syncActiveTabs();
+}
+
+// A aba "Grupo" fixa é opcional agora (Configurações > Aba "Grupo") — some
+// da barra quando desligada, e se a pessoa estava vendo ela nesse momento,
+// volta pro próprio espaço em vez de deixar uma aba fantasma selecionada.
+function refreshGrupoTabVisibility() {
+  const grupoBtn = document.querySelector(".person-tab-grupo");
+  if (!grupoBtn) return;
+  const enabled = grupoTabEnabled();
+  grupoBtn.style.display = enabled ? "" : "none";
+  if (!enabled && activePerson === "grupo") setActivePerson(currentUser);
 }
 
 // ─── Trancar / destrancar temas ────────────────────────────────────────────────
@@ -503,6 +528,9 @@ let peopleCache          = {}; // { filipe: {pinHash, color, notesEnabled}, isab
 let groupsCache          = {}; // { [groupId]: {id, name, members, color, createdBy, createdAt} }
 
 function notesUIEnabled() { return peopleCache[currentUser]?.notesEnabled !== false; }
+// A aba "Grupo" fixa agora fica escondida por padrão — cada pessoa liga se quiser.
+function grupoTabEnabled() { return peopleCache[currentUser]?.grupoEnabled === true; }
+function musicEnabled() { return peopleCache[currentUser]?.musicEnabled !== false; }
 
 // Define --filipe-accent/--isabelle-accent a partir do que cada um escolheu
 // nas Configurações (ou o padrão, se nunca mexeu). Tudo que usa essas duas
@@ -527,7 +555,9 @@ onSnapshot(peopleRef, (snapshot) => {
   snapshot.docs.forEach((d) => { peopleCache[d.id] = d.data(); });
   applyAccentColors();
   refreshActiveAccent();
-  if (currentView === "filipe" || currentView === "isabelle") {
+  refreshGrupoTabVisibility();
+  renderGroupTabs(); // ser (ou deixar de ser) admin muda quais grupos aparecem
+  if (currentView && currentView !== "search" && currentView !== "settings") {
     notesPanel.style.display = notesUIEnabled() ? "" : "none";
     renderStudyList();
   }
@@ -556,7 +586,44 @@ function populateSettingsForm() {
   settingsPinSuccess.textContent = "";
   settingsColorInput.value = peopleCache[currentUser]?.color || DEFAULT_COLORS[currentUser];
   settingsNotesToggle.checked = notesUIEnabled();
+  settingsGrupoToggle.checked = grupoTabEnabled();
+  settingsMusicToggle.checked = musicEnabled();
   renderSettingsGroups();
+  renderSettingsAdmin();
+}
+
+// Só aparece pra quem é administrador — mostra as outras pessoas (Filipe e
+// Isabelle são as únicas que existem por enquanto) com um interruptor pra
+// dar ou tirar o admin de cada uma. Não mostra um interruptor pra si mesmo,
+// pra ninguém conseguir se auto-remover o acesso sem querer.
+function renderSettingsAdmin() {
+  if (!isAdmin(currentUser)) {
+    settingsAdminSection.style.display = "none";
+    return;
+  }
+  settingsAdminSection.style.display = "";
+  const others = Object.keys(PEOPLE).filter((id) => id !== currentUser);
+  settingsAdminList.innerHTML = others.map((id) => `
+    <div class="settings-admin-row" data-id="${escapeHtml(id)}">
+      <span class="settings-admin-name">${escapeHtml(PEOPLE[id])}</span>
+      <label class="settings-toggle-row">
+        <input type="checkbox" class="settings-admin-toggle" ${isAdmin(id) ? "checked" : ""} />
+        <span class="settings-toggle-switch"></span>
+        <span class="settings-toggle-label">É administrador(a)</span>
+      </label>
+    </div>
+  `).join("");
+
+  settingsAdminList.querySelectorAll(".settings-admin-row").forEach((row) => {
+    const personId = row.dataset.id;
+    row.querySelector(".settings-admin-toggle").addEventListener("change", async (e) => {
+      try {
+        // setDoc + merge (em vez de updateDoc) porque a pessoa pode nunca ter
+        // logado ainda — nesse caso o documento dela em "people" nem existe.
+        await setDoc(doc(db, "people", personId), { isAdmin: e.target.checked }, { merge: true });
+      } catch (err) { console.error("Erro ao mudar administrador:", err); }
+    });
+  });
 }
 
 // Lista os grupos (com nome editável, participantes e remoção) nas Configurações.
@@ -653,6 +720,18 @@ settingsColorReset.addEventListener("click", async () => {
 settingsNotesToggle.addEventListener("change", async () => {
   try { await updateDoc(doc(db, "people", currentUser), { notesEnabled: settingsNotesToggle.checked }); }
   catch (err) { console.error("Erro ao salvar preferência de anotações:", err); }
+});
+
+settingsGrupoToggle.addEventListener("change", async () => {
+  try {
+    await updateDoc(doc(db, "people", currentUser), { grupoEnabled: settingsGrupoToggle.checked });
+    refreshGrupoTabVisibility();
+  } catch (err) { console.error("Erro ao salvar preferência da aba Grupo:", err); }
+});
+
+settingsMusicToggle.addEventListener("change", async () => {
+  try { await updateDoc(doc(db, "people", currentUser), { musicEnabled: settingsMusicToggle.checked }); }
+  catch (err) { console.error("Erro ao salvar preferência de música:", err); }
 });
 
 // ─── Criar grupo ────────────────────────────────────────────────────────────────
@@ -1249,34 +1328,38 @@ function spawnClickHeart(x, y) {
   heart.addEventListener("animationend", () => heart.remove());
 }
 
-// Vários corações subindo ao redor de um ponto, escalonados no tempo — usado
-// quando a foto do casal aparece, como um "confete" discreto de corações.
-function spawnHeartBurst(cx, cy, count = 10) {
+// Vários corações subindo em volta de um ponto (em todas as direções, não só
+// dos lados), escalonados no tempo — usado quando a foto do casal aparece.
+function spawnHeartBurst(cx, cy, count = 12, radius = 160) {
   for (let i = 0; i < count; i++) {
     setTimeout(() => {
-      const dx = (Math.random() - 0.5) * 140;
-      const dy = (Math.random() - 0.5) * 40;
-      spawnClickHeart(cx + dx, cy + dy);
-    }, i * 80);
+      const angle = Math.random() * Math.PI * 2;
+      const dist  = radius * (0.35 + Math.random() * 0.65);
+      spawnClickHeart(cx + Math.cos(angle) * dist, cy + Math.sin(angle) * dist);
+    }, i * 70);
   }
 }
 
 let lastHeartAt = 0;
 
-function maybeSpawnHeart(x, y) {
+function maybeSpawnHeart(x, y, target) {
   if (currentView !== "isabelle") return;
+  // Nunca nasce em cima de um botão da barra de abas — nem trocando PRA
+  // Isabelle, nem trocando DELA pra outro lugar (aba de outra pessoa,
+  // pesquisa, configurações, "+"): nenhum clique ali é "conteúdo" de
+  // verdade, é só navegação, então nunca deveria deixar um coração preso.
+  if (target && target.closest && target.closest("#person-tabs")) return;
   const now = Date.now();
   if (now - lastHeartAt < 150) return; // já veio um toque/click pra essa mesma interação
   lastHeartAt = now;
   spawnClickHeart(x, y);
 }
 
-// Fase de "captura" (o 3º argumento "true"): sem isso, tocar no próprio botão
-// da aba "Isabelle" trocava de aba primeiro (o próprio botão tem seu clique)
-// e só depois chegava aqui — nesse momento activePerson já tinha mudado, e
-// nascia um coração perdido em cima do botão. Capturando antes, a checagem
-// usa o estado de ANTES do toque, que é o correto.
-document.addEventListener("click", (e) => maybeSpawnHeart(e.clientX, e.clientY), true);
+// Fase de "captura" (o 3º argumento "true"): sem isso, tocar num botão que
+// muda de aba (ou de/pra Isabelle) disparava o clique dele primeiro — nesse
+// momento currentView já tinha mudado, e nascia um coração perdido em cima
+// do botão. Capturando antes, a checagem usa o estado de ANTES do toque.
+document.addEventListener("click", (e) => maybeSpawnHeart(e.clientX, e.clientY, e.target), true);
 
 let heartTouchStart = null;
 
@@ -1295,7 +1378,7 @@ document.addEventListener("touchend", (e) => {
   const moved   = Math.hypot(touch.clientX - x, touch.clientY - y);
   const elapsed = Date.now() - t;
   if (moved > 16 || elapsed > 600) return; // foi um arrasto/rolagem, não um toque
-  maybeSpawnHeart(touch.clientX, touch.clientY);
+  maybeSpawnHeart(touch.clientX, touch.clientY, e.target);
 }, { passive: true, capture: true });
 
 // ─── Modal: foto (abre ao clicar no coraçãozinho do rodapé) ──────────────────
@@ -1317,13 +1400,17 @@ function openPhotoModal() {
   // então se ela já falhou antes do "error" abaixo estar escutando, checa aqui.
   if (photoModalImg.complete && photoModalImg.naturalWidth === 0) showPhotoFallback();
 
-  const rect = pageHeartSignature.getBoundingClientRect();
-  spawnHeartBurst(rect.left + rect.width / 2, rect.top + rect.height / 2);
+  // Ao redor do cartão da foto (já visível, então dá pra medir), não só perto
+  // do coraçãozinho do rodapé — cobre os quatro lados, não só um cantinho.
+  const cardRect = photoModal.querySelector(".photo-modal").getBoundingClientRect();
+  spawnHeartBurst(cardRect.left + cardRect.width / 2, cardRect.top + cardRect.height / 2, 18, cardRect.width / 2 + 70);
 
-  // Isso roda direto dentro do clique da pessoa, então o navegador deixa tocar
-  // com som (autoplay "silencioso" sem gesto do usuário é bloqueado, mas isso não é o caso aqui).
-  photoModalAudio.currentTime = 0;
-  photoModalAudio.play().catch((err) => console.error("Erro ao tocar a música:", err));
+  if (musicEnabled()) {
+    // Isso roda direto dentro do clique da pessoa, então o navegador deixa tocar
+    // com som (autoplay "silencioso" sem gesto do usuário é bloqueado, mas isso não é o caso aqui).
+    photoModalAudio.currentTime = 0;
+    photoModalAudio.play().catch((err) => console.error("Erro ao tocar a música:", err));
+  }
 }
 function closePhotoModal() {
   photoModal.style.display = "none";

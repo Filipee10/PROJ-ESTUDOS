@@ -453,16 +453,29 @@ header h1 span { color: var(--blue); }
 
 /* ── Layout: conteúdo + painel lateral ────────────────── */
 .layout {
+  /* width:100% + justify-content:center (em vez de deixar o .layout
+     encolher pro conteúdo): testei encolher e o .main-col, que tem
+     flex-basis fixo, acabava não respeitando esse tamanho num container
+     sem largura própria (uma pegadinha do flexbox) — ficava bem mais
+     estreito que 680px. Com largura real e justify-content:center, o
+     .main-col fica garantido nos 680px e centralizado quando o painel
+     de anotações estiver escondido. */
   width: 100%;
   max-width: 1040px;
   display: flex;
   align-items: flex-start;
+  justify-content: center;
   gap: 20px;
   flex-wrap: wrap;
 }
 
 .main-col {
-  flex: 1 1 420px;
+  /* flex-basis 680 (não 420) e grow:0: antes, "grow" só chegava aos 680px
+     de propósito porque o .layout era forçado a 1040px de largura mesmo
+     com o painel de anotações escondido. Sem esse truque (agora que o
+     .layout encolhe pro conteúdo, pra poder centralizar), o "grow" não
+     tinha mais espaço extra pra puxar o card até o tamanho certo. */
+  flex: 0 1 680px;
   min-width: 280px;
   max-width: 680px;
   display: flex;
@@ -1243,6 +1256,27 @@ header h1 span { color: var(--blue); }
 .settings-group-members input { width: auto; accent-color: var(--blue); cursor: pointer; }
 
 .settings-add-group-btn { margin-top: 10px; width: fit-content; }
+
+/* ── Configurações: administração ───────────────────────── */
+.settings-admin-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.settings-admin-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.settings-admin-row .settings-toggle-row { width: auto; }
+.settings-admin-name { font-size: 0.88rem; font-weight: 600; }
 
 /* ── Coraçãozinho de clique ─────────────────────────────── */
 .click-heart {
