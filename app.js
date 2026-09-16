@@ -15,6 +15,7 @@ import {
 
 // ─── Pessoas ─────────────────────────────────────────────────────────────────
 const PEOPLE = { filipe: "Filipe", isabelle: "Isabelle" };
+const DEFAULT_COLORS = { filipe: "#4da3ff", isabelle: "#ff6fae" };
 function ownerOf(t) { return (t && t.owner) || "filipe"; } // docs antigos, sem dono, caem no Filipe
 
 // Filipe é o admin: além do próprio espaço, também enxerga e edita o da Isabelle.
@@ -35,6 +36,7 @@ function hashPin(personId, pin) { return simpleHash(`${personId}:${pin}`); }
 // ─── Coleções ────────────────────────────────────────────────────────────────
 const studyRef  = collection(db, "study");
 const notesRef  = collection(db, "standalone-notes");
+const peopleRef = collection(db, "people");
 const qStudy    = query(studyRef, orderBy("createdAt", "asc"));
 const qNotes    = query(notesRef, orderBy("updatedAt", "desc"));
 
@@ -53,10 +55,29 @@ const loginPinBack      = document.getElementById("login-pin-back");
 const userNameDisplay   = document.getElementById("user-name-display");
 const logoutBtn         = document.getElementById("logout-btn");
 
-// ─── Elementos: abas por pessoa ────────────────────────────────────────────────
-const personTabBtns     = document.querySelectorAll(".person-tab");
+// ─── Elementos: abas por pessoa e utilitárias ──────────────────────────────────
+const personTabBtns     = document.querySelectorAll(".person-tab[data-person]");
+const utilityTabBtns    = document.querySelectorAll(".person-tab[data-view]");
 const readonlyBanner     = document.getElementById("readonly-banner");
 const readonlyBannerText = document.getElementById("readonly-banner-text");
+
+const panelStudy    = document.getElementById("panel-study");
+const panelSearch   = document.getElementById("panel-search");
+const panelSettings = document.getElementById("panel-settings");
+
+// ─── Elementos: pesquisa ────────────────────────────────────────────────────────
+const searchForm  = document.getElementById("search-form");
+const searchInput = document.getElementById("search-input");
+
+// ─── Elementos: configurações ───────────────────────────────────────────────────
+const settingsPinForm      = document.getElementById("settings-pin-form");
+const settingsPinNew       = document.getElementById("settings-pin-new");
+const settingsPinConfirm   = document.getElementById("settings-pin-confirm");
+const settingsPinError     = document.getElementById("settings-pin-error");
+const settingsPinSuccess   = document.getElementById("settings-pin-success");
+const settingsColorInput   = document.getElementById("settings-color-input");
+const settingsColorReset   = document.getElementById("settings-color-reset");
+const settingsNotesToggle  = document.getElementById("settings-notes-toggle");
 
 // ─── Elementos: desbloquear tema ───────────────────────────────────────────────
 const unlockModal       = document.getElementById("unlock-modal");
@@ -101,6 +122,7 @@ const notesRecentEmpty    = document.getElementById("notes-recent-empty");
 // ─── Sessão / login ─────────────────────────────────────────────────────────────
 let currentUser  = localStorage.getItem("study-person") || null; // 'filipe' | 'isabelle'
 let activePerson = currentUser;
+let currentView  = currentUser; // 'filipe' | 'isabelle' | 'search' | 'settings'
 
 let pendingLoginPerson = null;
 let pendingLoginMode   = null; // 'create' | 'enter'
@@ -192,14 +214,16 @@ loginPinForm.addEventListener("submit", async (e) => {
   }
 });
 
+// Referencia a variável CSS (não um valor fixo), então se a pessoa trocar
+// a própria cor depois, o nome aqui em cima já atualiza sozinho.
 function applyUserBadgeColor() {
-  userNameDisplay.classList.toggle("user-badge-color-filipe", currentUser === "filipe");
-  userNameDisplay.classList.toggle("user-badge-color-isabelle", currentUser === "isabelle");
+  userNameDisplay.style.color = currentUser === "isabelle" ? "var(--isabelle-accent)" : "var(--filipe-accent)";
 }
 
 function completeLogin(personId) {
   currentUser = personId;
   activePerson = personId;
+  currentView = personId;
   localStorage.setItem("study-person", personId);
   loginModal.style.display = "none";
   userNameDisplay.textContent = PEOPLE[currentUser];
@@ -210,22 +234,33 @@ function completeLogin(personId) {
 logoutBtn.addEventListener("click", () => {
   currentUser = null;
   activePerson = null;
+  currentView = null;
   localStorage.removeItem("study-person");
   closeNotesEditor();
   showLoginModal();
 });
 
-// ─── Abas por pessoa ─────────────────────────────────────────────────────────
+// ─── Abas por pessoa e utilitárias (pesquisa / configurações) ─────────────────
 personTabBtns.forEach((btn) => {
   btn.addEventListener("click", () => setActivePerson(btn.dataset.person));
 });
 
+utilityTabBtns.forEach((btn) => {
+  btn.addEventListener("click", () => showUtilityView(btn.dataset.view));
+});
+
 function setActivePerson(personId) {
   activePerson = personId;
+  currentView  = personId;
   closeNotesEditor();
 
   personTabBtns.forEach((b) => b.classList.toggle("active", b.dataset.person === personId));
-  document.body.classList.toggle("theme-isabelle", personId === "isabelle");
+  utilityTabBtns.forEach((b) => b.classList.remove("active"));
+  document.body.classList.toggle("viewing-isabelle", personId === "isabelle");
+
+  panelSearch.style.display   = "none";
+  panelSettings.style.display = "none";
+  panelStudy.style.display    = "flex";
 
   const isSelf = personId === currentUser;
   const isOwn  = canEdit(personId);
@@ -235,9 +270,26 @@ function setActivePerson(personId) {
     : `Você está vendo o espaço de ${PEOPLE[personId]} — somente leitura.`;
   studyFormCard.style.display = isOwn ? "" : "none";
   newNoteBtn.style.display    = isOwn ? "" : "none";
+  notesPanel.style.display    = notesUIEnabled() ? "" : "none";
 
   renderStudyList();
   renderNotesRecent();
+}
+
+function showUtilityView(view) {
+  currentView = view;
+  closeNotesEditor();
+
+  personTabBtns.forEach((b) => b.classList.remove("active"));
+  utilityTabBtns.forEach((b) => b.classList.toggle("active", b.dataset.view === view));
+
+  readonlyBanner.style.display = "none";
+  panelStudy.style.display  = "none";
+  notesPanel.style.display  = "none";
+  panelSearch.style.display   = view === "search"   ? "flex" : "none";
+  panelSettings.style.display = view === "settings" ? "flex" : "none";
+
+  if (view === "settings") populateSettingsForm();
 }
 
 // ─── Trancar / destrancar temas ────────────────────────────────────────────────
@@ -365,6 +417,94 @@ linkForm.addEventListener("submit", async (e) => {
 // ─── Cache local dos snapshots ────────────────────────────────────────────────
 let studyCache          = [];
 let standaloneNotesCache = [];
+let peopleCache          = {}; // { filipe: {pinHash, color, notesEnabled}, isabelle: {...} }
+
+function notesUIEnabled() { return peopleCache[currentUser]?.notesEnabled !== false; }
+
+// Define --filipe-accent/--isabelle-accent a partir do que cada um escolheu
+// nas Configurações (ou o padrão, se nunca mexeu). Tudo que usa essas duas
+// variáveis — abas, fundo do app, nome de quem está logado — atualiza sozinho.
+function applyAccentColors() {
+  const root = document.documentElement.style;
+  root.setProperty("--filipe-accent", peopleCache.filipe?.color || DEFAULT_COLORS.filipe);
+  root.setProperty("--isabelle-accent", peopleCache.isabelle?.color || DEFAULT_COLORS.isabelle);
+}
+
+onSnapshot(peopleRef, (snapshot) => {
+  peopleCache = {};
+  snapshot.docs.forEach((d) => { peopleCache[d.id] = d.data(); });
+  applyAccentColors();
+  if (currentView === "filipe" || currentView === "isabelle") {
+    notesPanel.style.display = notesUIEnabled() ? "" : "none";
+    renderStudyList();
+  }
+  if (currentView === "settings") populateSettingsForm();
+});
+
+function populateSettingsForm() {
+  settingsPinNew.value = "";
+  settingsPinConfirm.value = "";
+  settingsPinError.textContent = "";
+  settingsPinSuccess.textContent = "";
+  settingsColorInput.value = peopleCache[currentUser]?.color || DEFAULT_COLORS[currentUser];
+  settingsNotesToggle.checked = notesUIEnabled();
+}
+
+settingsPinForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  settingsPinError.textContent = "";
+  settingsPinSuccess.textContent = "";
+  const pin = settingsPinNew.value.trim();
+  const confirmPin = settingsPinConfirm.value.trim();
+  if (!/^\d{4,6}$/.test(pin)) {
+    settingsPinError.textContent = "O PIN deve ter de 4 a 6 números.";
+    return;
+  }
+  if (pin !== confirmPin) {
+    settingsPinError.textContent = "Os PINs não coincidem.";
+    return;
+  }
+  try {
+    await updateDoc(doc(db, "people", currentUser), { pinHash: hashPin(currentUser, pin) });
+    settingsPinNew.value = "";
+    settingsPinConfirm.value = "";
+    settingsPinSuccess.textContent = "PIN atualizado!";
+  } catch (err) {
+    console.error("Erro ao trocar PIN:", err);
+    settingsPinError.textContent = "Erro ao salvar. Tente de novo.";
+  }
+});
+
+let colorSaveTimer = null;
+settingsColorInput.addEventListener("input", () => {
+  clearTimeout(colorSaveTimer);
+  colorSaveTimer = setTimeout(async () => {
+    try { await updateDoc(doc(db, "people", currentUser), { color: settingsColorInput.value }); }
+    catch (err) { console.error("Erro ao salvar cor:", err); }
+  }, 400);
+});
+
+settingsColorReset.addEventListener("click", async () => {
+  const def = DEFAULT_COLORS[currentUser];
+  settingsColorInput.value = def;
+  try { await updateDoc(doc(db, "people", currentUser), { color: def }); }
+  catch (err) { console.error("Erro ao restaurar cor padrão:", err); }
+});
+
+settingsNotesToggle.addEventListener("change", async () => {
+  try { await updateDoc(doc(db, "people", currentUser), { notesEnabled: settingsNotesToggle.checked }); }
+  catch (err) { console.error("Erro ao salvar preferência de anotações:", err); }
+});
+
+// ─── Pesquisa (atalho para o jw.org) ────────────────────────────────────────────
+searchForm.addEventListener("submit", (e) => {
+  e.preventDefault();
+  const term = searchInput.value.trim();
+  if (!term) return;
+  const url = `https://www.jw.org/pt/busca/?q=${encodeURIComponent(term)}`;
+  window.open(url, "_blank", "noopener,noreferrer");
+  searchInput.value = "";
+});
 
 // ─── Painel de anotações (lateral) ─────────────────────────────────────────────
 // Abrir um tema mostra, juntos: a anotação geral do tema e a anotação de
@@ -647,13 +787,14 @@ onSnapshot(qStudy, (snapshot) => {
 function renderStudyList() {
   const items = studyCache.filter((t) => ownerOf(t) === activePerson);
   const isOwn = canEdit(activePerson);
+  const showNotesUI = notesUIEnabled();
 
   studyList.innerHTML = "";
   studyTotal.textContent = items.length;
   const done = items.filter((t) => isAllChecked(t)).length;
   studyDone.textContent = done;
   studyEmpty.style.display = items.length === 0 ? "flex" : "none";
-  items.forEach((t) => studyList.appendChild(renderStudyItem(t, isOwn)));
+  items.forEach((t) => studyList.appendChild(renderStudyItem(t, isOwn, showNotesUI)));
 }
 
 function isAllChecked(topic) {
@@ -677,7 +818,7 @@ function lockedOverlayHtml(topic) {
     </div>`;
 }
 
-function linksListHtml(links, editable) {
+function linksListHtml(links, editable, showNotesUI) {
   if (links.length === 0) return editable ? `<p class="no-links">Nenhum link ainda. Clique em "+ Link" para adicionar.</p>` : "";
   return `
     <ul class="link-list">
@@ -692,10 +833,11 @@ function linksListHtml(links, editable) {
           <a href="${escapeHtml(link.url)}" target="_blank" rel="noopener noreferrer" class="link-label">
             ${escapeHtml(link.label || link.url)}
           </a>
-          ${editable ? `
+          ${editable && showNotesUI ? `
           <button class="btn-icon link-note${hasNotesContent(link.notes) ? " has-notes" : ""}" data-idx="${idx}" aria-label="Anotação do link">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v12H8l-4 4V4z"/></svg>
-          </button>
+          </button>` : ""}
+          ${editable ? `
           <button class="btn-icon link-delete" data-idx="${idx}" aria-label="Remover link">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
@@ -706,7 +848,7 @@ function linksListHtml(links, editable) {
     </ul>`;
 }
 
-function renderStudyItem(topic, isOwn) {
+function renderStudyItem(topic, isOwn, showNotesUI) {
   const allDone  = isAllChecked(topic);
   const links    = topic.links || [];
   const hasNotes = hasNotesContent(topic.notes);
@@ -718,10 +860,11 @@ function renderStudyItem(topic, isOwn) {
   li.draggable   = isOwn;
 
   const actionsHtml = isOwn ? `
+        ${showNotesUI ? `
         <button class="btn-notes${hasNotes ? " has-notes" : ""}" aria-label="Anotações">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v12H8l-4 4V4z"/></svg>
           Notas
-        </button>
+        </button>` : ""}
         <button class="btn-add-link" aria-label="Adicionar link">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           Link
@@ -742,7 +885,7 @@ function renderStudyItem(topic, isOwn) {
             <path d="M10 11v6M14 11v6M9 6V4h6v2"/>
           </svg>
         </button>
-  ` : (hasNotes ? `
+  ` : (hasNotes && showNotesUI ? `
         <button class="btn-notes has-notes" aria-label="Anotações">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v12H8l-4 4V4z"/></svg>
           Notas
@@ -761,7 +904,7 @@ function renderStudyItem(topic, isOwn) {
       </div>
       <div class="topic-header-actions">${actionsHtml}</div>
     </div>
-    ${linksListHtml(links, isOwn)}
+    ${linksListHtml(links, isOwn, showNotesUI)}
   `;
 
   li.innerHTML = showLocked
@@ -878,7 +1021,7 @@ function spawnClickHeart(x, y) {
 let lastHeartAt = 0;
 
 function maybeSpawnHeart(x, y) {
-  if (activePerson !== "isabelle") return;
+  if (currentView !== "isabelle") return;
   const now = Date.now();
   if (now - lastHeartAt < 150) return; // já veio um toque/click pra essa mesma interação
   lastHeartAt = now;

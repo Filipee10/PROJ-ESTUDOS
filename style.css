@@ -19,32 +19,36 @@
   --danger-bg:    rgba(218,54,51,0.08);
   --radius:       10px;
   --shadow:       0 8px 32px rgba(0,0,0,0.45);
-  --isabelle:     #ff6fae;
-  --isabelle-dim: #e0559a;
-  --isabelle-bg:  rgba(255,111,174,0.08);
   --surface-checked: #0d1a2e;
 
-  /* Cor fixa do nome de quem está logado (no topo) — não muda com o tema
-     da aba que está sendo visualizada, só com quem é o usuário. */
-  --filipe: #4da3ff;
+  /* Cor de cada pessoa — personalizável nas Configurações. Fica sempre
+     disponível (não muda com a aba visível), usada no nome de quem está
+     logado, nas próprias abas, e como base do tema quando o espaço de
+     cada um está sendo visualizado. */
+  --filipe-accent:   #4da3ff;
+  --isabelle-accent: #ff6fae;
+
+  /* Qual das duas cores acima está guiando a paleta agora. */
+  --active-accent: var(--filipe-accent);
 }
 
-/* Quando o espaço visível é o da Isabelle, o tema do site inteiro vira rosa
-   (recolorindo os mesmos tokens que os componentes já usam, incluindo o
-   fundo e as superfícies — não só botões e destaques). */
-body.theme-isabelle {
-  --bg:               #1c0f18;
-  --surface:          #271521;
-  --border:           #452336;
-  --border-hover:     #5c2f48;
-  --blue:             var(--isabelle);
-  --blue-dim:         var(--isabelle-dim);
-  --blue-bg:          var(--isabelle-bg);
-  --surface-checked:  #2a1220;
-}
+body.viewing-isabelle { --active-accent: var(--isabelle-accent); }
 
-.user-badge-color-filipe   { color: var(--filipe) !important; }
-.user-badge-color-isabelle { color: var(--isabelle) !important; }
+/* Tudo abaixo deriva de --active-accent com color-mix() — trocar a aba
+   de pessoa (ou a cor que cada um escolheu) já recolore o app inteiro:
+   fundo, superfícies, bordas e destaques, sem duplicar regra por regra.
+   Se o navegador não suportar color-mix(), essas declarações são
+   ignoradas e o app volta pros valores fixos do :root acima. */
+body {
+  --blue:             var(--active-accent);
+  --blue-dim:         color-mix(in srgb, var(--active-accent) 78%, black);
+  --blue-bg:          color-mix(in srgb, var(--active-accent) 8%, transparent);
+  --bg:               color-mix(in srgb, var(--active-accent) 6%, #0a0a10);
+  --surface:          color-mix(in srgb, var(--active-accent) 8%, #12121a);
+  --border:           color-mix(in srgb, var(--active-accent) 14%, #1c1c28);
+  --border-hover:     color-mix(in srgb, var(--active-accent) 20%, #262633);
+  --surface-checked:  color-mix(in srgb, var(--active-accent) 12%, #0e0e16);
+}
 
 html { -webkit-tap-highlight-color: transparent; }
 
@@ -152,18 +156,29 @@ header h1 span { color: var(--blue); }
 }
 
 .person-tab-filipe.active {
-  color: var(--blue);
-  border-color: var(--blue-dim);
-  background: var(--blue-bg);
+  color: var(--filipe-accent);
+  border-color: color-mix(in srgb, var(--filipe-accent) 78%, black);
+  background: color-mix(in srgb, var(--filipe-accent) 8%, transparent);
 }
-.person-tab-filipe.active .person-tab-dot { background: var(--blue); }
+.person-tab-filipe.active .person-tab-dot { background: var(--filipe-accent); }
 
 .person-tab-isabelle.active {
-  color: var(--isabelle);
-  border-color: var(--isabelle-dim);
-  background: var(--isabelle-bg);
+  color: var(--isabelle-accent);
+  border-color: color-mix(in srgb, var(--isabelle-accent) 78%, black);
+  background: color-mix(in srgb, var(--isabelle-accent) 8%, transparent);
 }
-.person-tab-isabelle.active .person-tab-dot { background: var(--isabelle); }
+.person-tab-isabelle.active .person-tab-dot { background: var(--isabelle-accent); }
+
+.person-tab-utility {
+  flex: 0 0 auto;
+  padding: 11px 14px;
+}
+.person-tab-utility svg { width: 18px; height: 18px; }
+.person-tab-utility.active {
+  color: var(--text);
+  border-color: var(--border-hover);
+  background: var(--border);
+}
 
 /* ── Banner somente leitura ────────────────────────────── */
 .readonly-banner {
@@ -220,11 +235,11 @@ header h1 span { color: var(--blue); }
   transition: background .15s, color .15s;
 }
 
-.person-filipe:hover { border-color: var(--blue-dim); background: var(--blue-bg); }
-.person-filipe:hover .person-avatar { background: var(--blue); color: #0b1220; }
+.person-filipe:hover { border-color: color-mix(in srgb, var(--filipe-accent) 78%, black); background: color-mix(in srgb, var(--filipe-accent) 8%, transparent); }
+.person-filipe:hover .person-avatar { background: var(--filipe-accent); color: #0b1220; }
 
-.person-isabelle:hover { border-color: var(--isabelle-dim); background: var(--isabelle-bg); }
-.person-isabelle:hover .person-avatar { background: var(--isabelle); color: #0b1220; }
+.person-isabelle:hover { border-color: color-mix(in srgb, var(--isabelle-accent) 78%, black); background: color-mix(in srgb, var(--isabelle-accent) 8%, transparent); }
+.person-isabelle:hover .person-avatar { background: var(--isabelle-accent); color: #0b1220; }
 
 .field-error {
   font-size: 0.78rem;
@@ -957,6 +972,102 @@ header h1 span { color: var(--blue); }
 
 .btn-ghost:hover { color: var(--text); border-color: var(--border-hover); }
 
+/* ── Configurações ──────────────────────────────────────── */
+.settings-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 14px;
+}
+
+.settings-title { font-size: 0.98rem; font-weight: 700; margin-bottom: 4px; }
+.settings-desc { font-size: 0.82rem; color: var(--text-muted); line-height: 1.4; margin-bottom: 12px; }
+
+.settings-pin-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.settings-pin-form input {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 1rem;
+  padding: 10px 14px;
+  outline: none;
+  transition: border-color .15s;
+  width: 100%;
+  -webkit-appearance: none;
+}
+
+.settings-pin-form input::placeholder { color: var(--text-muted); }
+.settings-pin-form input:focus { border-color: var(--blue-dim); }
+
+.field-success {
+  font-size: 0.78rem;
+  color: #3fb950;
+  min-height: 14px;
+}
+
+.settings-color-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.settings-color-row input[type="color"] {
+  width: 48px;
+  height: 38px;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  cursor: pointer;
+  -webkit-appearance: none;
+}
+.settings-color-row input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+.settings-color-row input[type="color"]::-webkit-color-swatch { border: none; border-radius: 5px; }
+
+.settings-toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  width: fit-content;
+}
+
+.settings-toggle-row input { position: absolute; opacity: 0; width: 0; height: 0; }
+
+.settings-toggle-switch {
+  width: 38px;
+  height: 22px;
+  border-radius: 999px;
+  background: var(--border);
+  position: relative;
+  flex-shrink: 0;
+  transition: background .15s;
+}
+.settings-toggle-switch::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--text);
+  transition: transform .15s;
+}
+.settings-toggle-row input:checked + .settings-toggle-switch { background: var(--blue); }
+.settings-toggle-row input:checked + .settings-toggle-switch::after { transform: translateX(16px); background: #0b1220; }
+
+.settings-toggle-label { font-size: 0.88rem; }
+
 /* ── Coraçãozinho de clique ─────────────────────────────── */
 .click-heart {
   position: fixed;
@@ -969,7 +1080,7 @@ header h1 span { color: var(--blue); }
   animation: heart-float .9s ease-out forwards;
 }
 
-.click-heart svg { width: 100%; height: 100%; fill: var(--isabelle); }
+.click-heart svg { width: 100%; height: 100%; fill: var(--isabelle-accent); }
 
 .click-heart span {
   position: absolute;
@@ -1004,7 +1115,7 @@ header h1 span { color: var(--blue); }
 
 .page-heart-signature:hover { opacity: .4; }
 
-.page-heart-signature svg { width: 100%; height: 100%; fill: var(--isabelle); }
+.page-heart-signature svg { width: 100%; height: 100%; fill: var(--isabelle-accent); }
 
 .page-heart-signature span {
   position: absolute;

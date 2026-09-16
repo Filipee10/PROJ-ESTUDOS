@@ -113,6 +113,12 @@
           <button class="person-tab person-tab-isabelle" data-person="isabelle">
             <span class="person-tab-dot"></span> Isabelle
           </button>
+          <button class="person-tab person-tab-utility" data-view="search" aria-label="Pesquisa">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          </button>
+          <button class="person-tab person-tab-utility" data-view="settings" aria-label="Configurações">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          </button>
         </div>
       </div>
 
@@ -144,6 +150,56 @@
         <div id="study-empty" class="empty-state">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
           Nenhum tema ainda.
+        </div>
+      </div>
+
+      <!-- Painel: Pesquisa -->
+      <div id="panel-search" class="panel" style="display:none;">
+        <div class="settings-section">
+          <h2 class="settings-title">Pesquisar no jw.org</h2>
+          <p class="settings-desc">Digite um termo e abra a busca oficial do site das Testemunhas de Jeová numa aba nova.</p>
+          <form id="search-form" class="form-inner">
+            <div class="form-row">
+              <input type="text" id="search-input" placeholder="O que você quer pesquisar?" autocomplete="off" />
+              <button type="submit" class="btn-primary btn-add">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                Buscar
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Painel: Configurações -->
+      <div id="panel-settings" class="panel" style="display:none;">
+        <div class="settings-section">
+          <h2 class="settings-title">Seu PIN</h2>
+          <p class="settings-desc">Troque o PIN usado para entrar e destrancar seus temas.</p>
+          <form id="settings-pin-form" class="settings-pin-form">
+            <input type="password" id="settings-pin-new" placeholder="Novo PIN (4 a 6 dígitos)" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="off" />
+            <input type="password" id="settings-pin-confirm" placeholder="Confirme o novo PIN" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="off" />
+            <span class="field-error" id="settings-pin-error"></span>
+            <span class="field-success" id="settings-pin-success"></span>
+            <button type="submit" class="btn-primary">Salvar novo PIN</button>
+          </form>
+        </div>
+
+        <div class="settings-section">
+          <h2 class="settings-title">Sua cor</h2>
+          <p class="settings-desc">A cor que te representa no app — no seu nome, nos botões e no fundo quando alguém estiver vendo o seu espaço.</p>
+          <div class="settings-color-row">
+            <input type="color" id="settings-color-input" />
+            <button type="button" id="settings-color-reset" class="btn-ghost">Restaurar padrão</button>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <h2 class="settings-title">Anotações</h2>
+          <label class="settings-toggle-row">
+            <input type="checkbox" id="settings-notes-toggle" />
+            <span class="settings-toggle-switch"></span>
+            <span class="settings-toggle-label">Mostrar o painel de anotações</span>
+          </label>
         </div>
       </div>
     </div>
