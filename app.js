@@ -1393,8 +1393,8 @@ function spaceLabel(space) {
 
 function formatTrashDate(ts) {
   const d = ts?.toDate?.();
-  if (!d) return "agora";
-  return d.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  if (!d) return "agora mesmo";
+  return "em " + d.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
 }
 
 async function restoreFromTrash(item) {
@@ -1434,7 +1434,7 @@ function renderTrash() {
       <div class="trash-item-info">
         <span class="trash-item-title"><span class="trash-item-kind">${escapeHtml(TRASH_KIND_LABELS[t.kind] || "Item")}</span> ${escapeHtml(t.title)}</span>
         <span class="trash-item-meta">
-          ${t.kind === "link" ? `do tema "${escapeHtml(t.topicTitle)}" · ` : ""}${t.kind === "group" ? "" : `espaço de ${escapeHtml(spaceLabel(t.space))} · `}apagado por ${escapeHtml(PEOPLE[t.deletedBy] || t.deletedBy)} em ${escapeHtml(formatTrashDate(t.deletedAt))}
+          ${t.kind === "link" ? `do tema "${escapeHtml(t.topicTitle)}" · ` : ""}${t.kind === "group" ? "" : `espaço de ${escapeHtml(spaceLabel(t.space))} · `}apagado por ${escapeHtml(PEOPLE[t.deletedBy] || t.deletedBy)} ${escapeHtml(formatTrashDate(t.deletedAt))}
         </span>
       </div>
       <div class="trash-item-actions">
