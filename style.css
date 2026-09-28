@@ -1317,12 +1317,22 @@ header h1 span { color: var(--blue); font-style: italic; }
   padding: 10px 12px;
 }
 
-.settings-group-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
+.settings-group-color {
+  width: 34px;
+  height: 34px;
+  padding: 2px;
   flex-shrink: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  cursor: pointer;
+  -webkit-appearance: none;
+  transition: border-color .15s, transform .15s;
 }
+.settings-group-color:hover { border-color: var(--border-hover); transform: scale(1.06); }
+.settings-group-color::-webkit-color-swatch-wrapper { padding: 0; }
+.settings-group-color::-webkit-color-swatch { border: none; border-radius: 5px; }
+.settings-group-color::-moz-color-swatch { border: none; border-radius: 5px; }
 
 .settings-group-name {
   flex: 1 1 140px;

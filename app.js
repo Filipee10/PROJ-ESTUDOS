@@ -353,7 +353,8 @@ document.addEventListener("keydown", (e) => {
 });
 
 function syncActiveTabs() {
-  allPersonTabBtns().forEach((b) => b.classList.toggle("active", b.dataset.person === activePerson));
+  // Numa tela utilitária (pesquisa, lixeira, configurações) nenhuma aba de espaço fica marcada.
+  allPersonTabBtns().forEach((b) => b.classList.toggle("active", isSpaceView(currentView) && b.dataset.person === activePerson));
 }
 
 function cssVar(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
@@ -678,7 +679,7 @@ function renderSettingsGroups() {
   }
   settingsGroupsList.innerHTML = groups.map((g) => `
     <div class="settings-group-row" data-id="${escapeHtml(g.id)}">
-      <span class="settings-group-dot" style="background:${escapeHtml(g.color || "#9b6bff")}"></span>
+      <input type="color" class="settings-group-color" value="${escapeHtml(g.color || "#9b6bff")}" aria-label="Cor do grupo" title="Mudar a cor do grupo" />
       <input type="text" class="settings-group-name" value="${escapeHtml(g.name || "")}" maxlength="60" />
       <div class="settings-group-members">
         <label><input type="checkbox" value="filipe" ${g.members?.includes("filipe") ? "checked" : ""} /> Filipe</label>
@@ -693,6 +694,18 @@ function renderSettingsGroups() {
   settingsGroupsList.querySelectorAll(".settings-group-row").forEach((row) => {
     const groupId = row.dataset.id;
     const nameInput = row.querySelector(".settings-group-name");
+
+    // Salva no "change" (quando o seletor fecha), não no "input": salvar
+    // durante a escolha redesenharia a lista e fecharia o seletor no meio.
+    // Enquanto escolhe, só pinta a aba do grupo na hora, para ver como fica.
+    const colorInput = row.querySelector(".settings-group-color");
+    colorInput.addEventListener("input", () => {
+      document.querySelector(`.person-tab[data-person="${CSS.escape(groupId)}"]`)?.style.setProperty("--tab-accent", colorInput.value);
+    });
+    colorInput.addEventListener("change", async () => {
+      try { await updateDoc(doc(db, "groups", groupId), { color: colorInput.value }); }
+      catch (err) { console.error("Erro ao mudar a cor do grupo:", err); }
+    });
     let nameTimer;
     nameInput.addEventListener("input", () => {
       clearTimeout(nameTimer);
