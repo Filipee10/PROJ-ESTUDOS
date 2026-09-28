@@ -172,6 +172,8 @@ const linkForm        = document.getElementById("link-form");
 const linkLabelInput  = document.getElementById("link-label");
 const linkUrlInput    = document.getElementById("link-url");
 const linkCancelBtn   = document.getElementById("link-cancel");
+const linkModalTitle  = document.getElementById("link-modal-title");
+const linkSubmitBtn   = document.getElementById("link-submit");
 
 const studyForm       = document.getElementById("study-form");
 const studyFormCard   = studyForm.closest(".form-card");
@@ -515,22 +517,29 @@ editForm.addEventListener("submit", async (e) => {
   } catch (err) { console.error("Erro ao editar:", err); }
 });
 
-// ─── Modal: adicionar link ────────────────────────────────────────────────────
+// ─── Modal: adicionar / editar link ───────────────────────────────────────────
 let linkTargetId   = null;
 let linkTargetType = null;
+let linkEditIdx    = null; // null = adicionando um link novo; número = editando esse link
 
-function openLinkModal(id, type) {
+function openLinkModal(id, type, editIdx = null) {
   linkTargetId   = id;
   linkTargetType = type;
-  linkLabelInput.value = "";
-  linkUrlInput.value   = "";
+  linkEditIdx    = editIdx;
+  const editing  = editIdx !== null ? studyCache.find((t) => t.id === id)?.links?.[editIdx] : null;
+  linkModalTitle.textContent = editing ? "Editar link" : "Adicionar link";
+  linkSubmitBtn.textContent  = editing ? "Salvar" : "Adicionar";
+  // Se o nome nunca foi dado, o link guarda a própria URL como nome — aí o
+  // campo começa vazio em vez de repetir a URL.
+  linkLabelInput.value = editing && editing.label !== editing.url ? editing.label : "";
+  linkUrlInput.value   = editing ? editing.url : "";
   linkModal.style.display = "flex";
   setTimeout(() => linkLabelInput.focus(), 50);
 }
 
 function closeLinkModal() {
   linkModal.style.display = "none";
-  linkTargetId = linkTargetType = null;
+  linkTargetId = linkTargetType = linkEditIdx = null;
 }
 
 linkCancelBtn.addEventListener("click", closeLinkModal);
@@ -545,12 +554,16 @@ linkForm.addEventListener("submit", async (e) => {
   const docRef  = doc(db, "study", linkTargetId);
   const current = studyCache.find((t) => t.id === linkTargetId);
   const links = current?.links ? [...current.links] : [];
-  links.push({ url, label: label || url, checked: false });
+  if (linkEditIdx !== null && links[linkEditIdx]) {
+    links[linkEditIdx] = { ...links[linkEditIdx], url, label: label || url };
+  } else {
+    links.push({ url, label: label || url, checked: false });
+  }
 
   try {
     await updateDoc(docRef, { links });
     closeLinkModal();
-  } catch (err) { console.error("Erro ao adicionar link:", err); }
+  } catch (err) { console.error("Erro ao salvar link:", err); }
 });
 
 // ─── Cache local dos snapshots ────────────────────────────────────────────────
@@ -1195,12 +1208,19 @@ function lockedOverlayHtml(topic) {
     </div>`;
 }
 
+function svgStar() {
+  return `<svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`;
+}
+
 function linksListHtml(links, editable, showNotesUI, canDelete) {
   if (links.length === 0) return editable ? `<p class="no-links">Nenhum link ainda. Clique em "+ Link" para adicionar.</p>` : "";
+  // O link principal aparece primeiro; data-idx continua sendo a posição
+  // real no array, que é o que os botões usam para salvar.
+  const ordered = links.map((link, idx) => ({ link, idx })).sort((a, b) => (b.link.main ? 1 : 0) - (a.link.main ? 1 : 0));
   return `
     <ul class="link-list">
-      ${links.map((link, idx) => `
-        <li class="link-item ${link.checked ? "checked" : ""}">
+      ${ordered.map(({ link, idx }) => `
+        <li class="link-item ${link.checked ? "checked" : ""}${link.main ? " is-main" : ""}">
           ${editable ? `
           <button class="link-check" data-idx="${idx}" aria-label="${link.checked ? "Desmarcar" : "Marcar"}">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -1210,6 +1230,14 @@ function linksListHtml(links, editable, showNotesUI, canDelete) {
           <a href="${escapeHtml(link.url)}" target="_blank" rel="noopener noreferrer" class="link-label">
             ${escapeHtml(link.label || link.url)}
           </a>
+          ${link.main ? `<span class="link-main-badge">Principal</span>` : ""}
+          ${editable ? `
+          <button class="btn-icon link-star${link.main ? " is-main" : ""}" data-idx="${idx}" aria-label="${link.main ? "Deixar de ser o link principal" : "Marcar como link principal"}" title="${link.main ? "Deixar de ser o principal" : "Marcar como principal"}">
+            ${svgStar()}
+          </button>
+          <button class="btn-icon link-edit" data-idx="${idx}" aria-label="Editar link" title="Editar nome ou endereço">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+          </button>` : ""}
           ${editable && showNotesUI ? `
           <button class="btn-icon link-note${hasNotesContent(link.notes) ? " has-notes" : ""}" data-idx="${idx}" aria-label="Anotação do link">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v12H8l-4 4V4z"/></svg>
@@ -1317,6 +1345,14 @@ function renderStudyItem(topic, isOwn, showNotesUI) {
     btn.addEventListener("click", () => toggleLinkCheck(topic, parseInt(btn.dataset.idx), "study"));
   });
 
+  li.querySelectorAll(".link-star").forEach((btn) => {
+    btn.addEventListener("click", () => toggleMainLink(topic, parseInt(btn.dataset.idx), "study"));
+  });
+
+  li.querySelectorAll(".link-edit").forEach((btn) => {
+    btn.addEventListener("click", () => openLinkModal(topic.id, "study", parseInt(btn.dataset.idx)));
+  });
+
   li.querySelectorAll(".link-delete").forEach((btn) => {
     btn.addEventListener("click", () => {
       const idx = parseInt(btn.dataset.idx);
@@ -1352,6 +1388,18 @@ async function toggleLinkCheck(topic, idx, colName) {
   try {
     await updateDoc(doc(db, colName, topic.id), { links });
   } catch (err) { console.error("Erro ao marcar link:", err); }
+}
+
+// Só um link principal por tema: marcar um desmarca o anterior; clicar de
+// novo na estrela do principal tira a marcação.
+async function toggleMainLink(topic, idx, colName) {
+  const makeMain = !topic.links?.[idx]?.main;
+  const links = (topic.links || []).map((l, i) => {
+    const { main, ...rest } = l;
+    return makeMain && i === idx ? { ...rest, main: true } : rest;
+  });
+  try { await updateDoc(doc(db, colName, topic.id), { links }); }
+  catch (err) { console.error("Erro ao marcar link principal:", err); }
 }
 
 async function deleteLink(topic, idx, colName) {

@@ -100,7 +100,7 @@
   <!-- Modal: adicionar link -->
   <div id="link-modal" class="modal-overlay" style="display:none;">
     <div class="modal">
-      <h2>Adicionar link</h2>
+      <h2 id="link-modal-title">Adicionar link</h2>
       <form id="link-form">
         <label class="field-label">Descrição <span class="field-optional">(opcional)</span></label>
         <input type="text" id="link-label" placeholder="Ex: Artigo da Sentinela" maxlength="80" autocomplete="off" />
@@ -108,7 +108,7 @@
         <input type="url" id="link-url" placeholder="https://..." autocomplete="off" />
         <div class="modal-actions">
           <button type="button" id="link-cancel" class="btn-ghost">Cancelar</button>
-          <button type="submit" class="btn-primary">Adicionar</button>
+          <button type="submit" id="link-submit" class="btn-primary">Adicionar</button>
         </div>
       </form>
     </div>

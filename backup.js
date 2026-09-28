@@ -80,7 +80,7 @@ function fmtTopic(t) {
     lines.push("");
     lines.push("**Pesquisas:**");
     links.forEach((l) => {
-      lines.push(`- ${l.checked ? "[x]" : "[ ]"} [${l.label || l.url}](${l.url})`);
+      lines.push(`- ${l.checked ? "[x]" : "[ ]"} ${l.main ? "⭐ (principal) " : ""}[${l.label || l.url}](${l.url})`);
       if (l.notes && l.notes.trim()) lines.push(`  - anotação: ${l.notes.trim()}`);
     });
   }
