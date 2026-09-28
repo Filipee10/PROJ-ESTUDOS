@@ -10,7 +10,8 @@ import {
   onSnapshot,
   serverTimestamp,
   query,
-  orderBy
+  orderBy,
+  writeBatch
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 // ─── Pessoas ─────────────────────────────────────────────────────────────────
@@ -69,6 +70,8 @@ const studyRef  = collection(db, "study");
 const notesRef  = collection(db, "standalone-notes");
 const peopleRef = collection(db, "people");
 const groupsRef = collection(db, "groups");
+const trashRef  = collection(db, "trash");
+const appConfigDoc = doc(db, "config", "app");
 const qStudy    = query(studyRef, orderBy("createdAt", "asc"));
 const qNotes    = query(notesRef, orderBy("updatedAt", "desc"));
 
@@ -102,6 +105,13 @@ const readonlyBannerText = document.getElementById("readonly-banner-text");
 const panelStudy    = document.getElementById("panel-study");
 const panelSearch   = document.getElementById("panel-search");
 const panelSettings = document.getElementById("panel-settings");
+const panelTrash    = document.getElementById("panel-trash");
+const trashList     = document.getElementById("trash-list");
+const trashEmpty    = document.getElementById("trash-empty");
+
+// Abas que não são o espaço de uma pessoa/grupo.
+const UTILITY_VIEWS = ["search", "settings", "trash"];
+function isSpaceView(view) { return !!view && !UTILITY_VIEWS.includes(view); }
 
 // ─── Elementos: pesquisa ────────────────────────────────────────────────────────
 const searchForm         = document.getElementById("search-form");
@@ -124,6 +134,8 @@ const settingsGroupsList   = document.getElementById("settings-groups-list");
 const settingsAddGroupBtn  = document.getElementById("settings-add-group-btn");
 const settingsAdminSection = document.getElementById("settings-admin-section");
 const settingsAdminList    = document.getElementById("settings-admin-list");
+const settingsPhotoSection = document.getElementById("settings-photo-section");
+const settingsPhotoToggle  = document.getElementById("settings-photo-toggle");
 
 // ─── Elementos: criar grupo ─────────────────────────────────────────────────────
 const groupModal          = document.getElementById("group-modal");
@@ -335,6 +347,7 @@ function setActivePerson(personId) {
 
   panelSearch.style.display   = "none";
   panelSettings.style.display = "none";
+  panelTrash.style.display    = "none";
   panelStudy.style.display    = "flex";
 
   const isOwn = canEdit(personId);
@@ -369,8 +382,10 @@ function showUtilityView(view) {
   notesPanel.style.display  = "none";
   panelSearch.style.display   = view === "search"   ? "flex" : "none";
   panelSettings.style.display = view === "settings" ? "flex" : "none";
+  panelTrash.style.display    = view === "trash"    ? "flex" : "none";
 
   if (view === "settings") populateSettingsForm();
+  if (view === "trash") renderTrash();
 }
 
 // Desenha as abas de grupo (depois das abas fixas Filipe/Isabelle).
@@ -532,7 +547,7 @@ function applyAccentColors() {
 // (ou o do outro, como admin), o tema tem que recolorir na hora — sem isso,
 // só atualizaria na próxima vez que trocasse de aba.
 function refreshActiveAccent() {
-  if (currentView && currentView !== "search" && currentView !== "settings") {
+  if (isSpaceView(currentView)) {
     document.documentElement.style.setProperty("--active-accent", resolveAccent(currentView));
   }
 }
@@ -544,7 +559,7 @@ onSnapshot(peopleRef, (snapshot) => {
   refreshActiveAccent();
   renderGroupTabs(); // ser (ou deixar de ser) admin muda quais grupos aparecem
   refreshAddGroupBtnVisibility();
-  if (currentView && currentView !== "search" && currentView !== "settings") {
+  if (isSpaceView(currentView)) {
     notesPanel.style.display = notesUIEnabled() ? "" : "none";
     renderStudyList();
   }
@@ -557,7 +572,7 @@ onSnapshot(groupsRef, (snapshot) => {
   renderGroupTabs();
   refreshActiveAccent();
   // Se o grupo que a pessoa estava vendo sumiu (foi removido, ou ela perdeu acesso), volta pro próprio espaço.
-  if (currentView && !["filipe", "isabelle", "search", "settings"].includes(currentView) && !visibleGroups().some((g) => g.id === currentView)) {
+  if (isSpaceView(currentView) && currentView !== "filipe" && currentView !== "isabelle" && !visibleGroups().some((g) => g.id === currentView)) {
     setActivePerson(currentUser);
   } else if (groupsCache[currentView]) {
     renderStudyList();
@@ -578,6 +593,8 @@ function populateSettingsForm() {
   // Criar/gerenciar grupo mexe na estrutura do app pros dois — só admin faz.
   settingsGroupsSection.style.display = isAdmin(currentUser) ? "" : "none";
   if (isAdmin(currentUser)) renderSettingsGroups();
+  settingsPhotoSection.style.display = isAdmin(currentUser) ? "" : "none";
+  settingsPhotoToggle.checked = photoEnabled();
   renderSettingsAdmin();
 }
 
@@ -662,9 +679,9 @@ function renderSettingsGroups() {
 
     row.querySelector(".settings-group-delete").addEventListener("click", async () => {
       try {
-        await deleteDoc(doc(db, "groups", groupId));
+        await moveToTrash("group", groupsCache[groupId]);
         if (activePerson === groupId) setActivePerson(currentUser);
-      } catch (err) { console.error("Erro ao remover grupo:", err); }
+      } catch (err) { trashFailed("Erro ao remover grupo:", err); }
     });
   });
 }
@@ -1070,8 +1087,9 @@ function renderNotesRecent() {
       deleteBtn.addEventListener("click", async (e) => {
         e.stopPropagation();
         if (activeNote?.kind === "standalone" && activeNote.id === item.id) closeNotesEditor();
-        try { await deleteDoc(doc(db, "standalone-notes", item.id)); }
-        catch (err) { console.error("Erro ao remover anotação:", err); }
+        const note = standaloneNotesCache.find((n) => n.id === item.id);
+        try { if (note) await moveToTrash("note", note); }
+        catch (err) { trashFailed("Erro ao remover anotação:", err); }
       });
     }
     notesRecentList.appendChild(li);
@@ -1237,9 +1255,10 @@ function renderStudyItem(topic, isOwn, showNotesUI) {
     try { await updateDoc(doc(db, "study", topic.id), { locked: !locked }); }
     catch (err) { console.error("Erro ao trancar/destrancar tema:", err); }
   });
-  li.querySelector(".delete-btn")?.addEventListener("click", () => {
+  li.querySelector(".delete-btn")?.addEventListener("click", async () => {
     if (activeNote?.kind === "topic" && activeNote.id === topic.id) closeNotesEditor();
-    deleteDoc(doc(db, "study", topic.id));
+    try { await moveToTrash("topic", topic); }
+    catch (err) { trashFailed("Erro ao remover tema:", err); }
   });
 
   li.querySelectorAll(".link-check").forEach((btn) => {
@@ -1284,10 +1303,25 @@ async function toggleLinkCheck(topic, idx, colName) {
 }
 
 async function deleteLink(topic, idx, colName) {
+  const link  = (topic.links || [])[idx];
   const links = (topic.links || []).filter((_, i) => i !== idx);
-  try {
-    await updateDoc(doc(db, colName, topic.id), { links });
-  } catch (err) { console.error("Erro ao remover link:", err); }
+  if (!link) return;
+  // Mesmo lote: o link só sai do tema se a cópia dele entrar na lixeira.
+  const batch = writeBatch(db);
+  batch.set(doc(trashRef), {
+    kind:       "link",
+    space:      ownerOf(topic),
+    title:      link.label || link.url,
+    topicTitle: topic.title || "",
+    originalId: topic.id,
+    linkIndex:  idx,
+    data:       link,
+    deletedBy:  currentUser,
+    deletedAt:  serverTimestamp()
+  });
+  batch.update(doc(db, colName, topic.id), { links });
+  try { await batch.commit(); }
+  catch (err) { trashFailed("Erro ao remover link:", err); }
 }
 
 // ─── Adicionar tema na lista de estudo ────────────────────────────────────────
@@ -1311,6 +1345,133 @@ studyForm.addEventListener("submit", async (e) => {
     studyTitleInput.focus();
   } catch (err) { console.error("Erro ao adicionar:", err); }
   finally { btn.disabled = false; }
+});
+
+// ─── Lixeira ──────────────────────────────────────────────────────────────────
+// Nada é apagado de verdade: o item vai inteiro (todos os campos) para a
+// coleção "trash" e sai do lugar original no MESMO lote (writeBatch) — ou
+// acontecem as duas coisas, ou nenhuma. Assim nunca some algo sem cópia.
+// Cada pessoa vê o que ela apagou e o que foi apagado do espaço dela;
+// administrador vê tudo. Apagar da lixeira para sempre é só com admin.
+const TRASH_COLLECTIONS = { topic: "study", note: "standalone-notes", group: "groups" };
+const TRASH_KIND_LABELS = { topic: "Tema", note: "Anotação", group: "Grupo", link: "Link" };
+
+let trashCache = [];
+
+// Mover para a lixeira é tudo-ou-nada: se falhou, o item continua onde estava.
+function trashFailed(context, err) {
+  console.error(context, err);
+  alert("Não consegui apagar: o item não pôde ser guardado na lixeira, então continua onde estava. Tente de novo.");
+}
+
+async function moveToTrash(kind, item) {
+  if (!item) return;
+  const { id, ...data } = item;
+  const batch = writeBatch(db);
+  batch.set(doc(trashRef), {
+    kind,
+    space:      kind === "group" ? id : ownerOf(item),
+    title:      (kind === "group" ? item.name : item.title) || "Sem título",
+    originalId: id,
+    data,
+    deletedBy:  currentUser,
+    deletedAt:  serverTimestamp()
+  });
+  batch.delete(doc(db, TRASH_COLLECTIONS[kind], id));
+  await batch.commit();
+}
+
+function visibleTrash() {
+  return trashCache
+    .filter((t) => isAdmin(currentUser) || t.deletedBy === currentUser || t.space === currentUser)
+    .sort((a, b) => (b.deletedAt?.toMillis?.() ?? Date.now()) - (a.deletedAt?.toMillis?.() ?? Date.now()));
+}
+
+function spaceLabel(space) {
+  return PEOPLE[space] || groupsCache[space]?.name || "grupo removido";
+}
+
+function formatTrashDate(ts) {
+  const d = ts?.toDate?.();
+  if (!d) return "agora";
+  return d.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+}
+
+async function restoreFromTrash(item) {
+  const batch = writeBatch(db);
+  if (item.kind === "link") {
+    const topic = studyCache.find((t) => t.id === item.originalId);
+    if (!topic) {
+      alert(`O tema "${item.topicTitle}" deste link também foi apagado. Restaure o tema primeiro.`);
+      return;
+    }
+    const links = [...(topic.links || [])];
+    links.splice(Math.min(item.linkIndex ?? links.length, links.length), 0, item.data);
+    batch.update(doc(db, "study", topic.id), { links });
+  } else {
+    batch.set(doc(db, TRASH_COLLECTIONS[item.kind], item.originalId), item.data);
+  }
+  batch.delete(doc(trashRef, item.id));
+  try { await batch.commit(); }
+  catch (err) {
+    console.error("Erro ao restaurar da lixeira:", err);
+    alert("Não consegui restaurar. Tente de novo.");
+  }
+}
+
+async function purgeFromTrash(item) {
+  if (!isAdmin(currentUser)) return;
+  if (!confirm(`Apagar "${item.title}" PARA SEMPRE? Isso não tem volta.`)) return;
+  try { await deleteDoc(doc(trashRef, item.id)); }
+  catch (err) { console.error("Erro ao apagar da lixeira:", err); }
+}
+
+function renderTrash() {
+  const items = visibleTrash();
+  trashEmpty.style.display = items.length === 0 ? "" : "none";
+  trashList.innerHTML = items.map((t) => `
+    <li class="trash-item" data-id="${escapeHtml(t.id)}">
+      <div class="trash-item-info">
+        <span class="trash-item-title"><span class="trash-item-kind">${escapeHtml(TRASH_KIND_LABELS[t.kind] || "Item")}</span> ${escapeHtml(t.title)}</span>
+        <span class="trash-item-meta">
+          ${t.kind === "link" ? `do tema "${escapeHtml(t.topicTitle)}" · ` : ""}${t.kind === "group" ? "" : `espaço de ${escapeHtml(spaceLabel(t.space))} · `}apagado por ${escapeHtml(PEOPLE[t.deletedBy] || t.deletedBy)} em ${escapeHtml(formatTrashDate(t.deletedAt))}
+        </span>
+      </div>
+      <div class="trash-item-actions">
+        <button type="button" class="btn-ghost trash-restore">Restaurar</button>
+        ${isAdmin(currentUser) ? `<button type="button" class="btn-ghost trash-purge">Apagar para sempre</button>` : ""}
+      </div>
+    </li>
+  `).join("");
+
+  trashList.querySelectorAll(".trash-item").forEach((li) => {
+    const item = trashCache.find((t) => t.id === li.dataset.id);
+    li.querySelector(".trash-restore").addEventListener("click", () => restoreFromTrash(item));
+    li.querySelector(".trash-purge")?.addEventListener("click", () => purgeFromTrash(item));
+  });
+}
+
+onSnapshot(trashRef, (snapshot) => {
+  trashCache = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+  if (currentView === "trash") renderTrash();
+});
+
+// ─── Configuração geral do app (vale para todo mundo) ─────────────────────────
+let appConfig = {};
+function photoEnabled() { return appConfig.photoEnabled !== false; }
+
+onSnapshot(appConfigDoc, (snap) => {
+  appConfig = snap.exists() ? snap.data() : {};
+  pageHeartSignature.classList.toggle("disabled", !photoEnabled());
+  if (!photoEnabled()) closePhotoModal();
+  if (currentView === "settings") settingsPhotoToggle.checked = photoEnabled();
+});
+
+settingsPhotoToggle.addEventListener("change", async () => {
+  if (!isAdmin(currentUser)) return;
+  // setDoc + merge: o documento de configuração pode ainda não existir.
+  try { await setDoc(appConfigDoc, { photoEnabled: settingsPhotoToggle.checked }, { merge: true }); }
+  catch (err) { console.error("Erro ao salvar a configuração da foto:", err); }
 });
 
 // ─── Coraçãozinho de clique (só na aba/espaço da Isabelle) ────────────────────
@@ -1400,6 +1561,7 @@ function showPhotoFallback() {
 }
 
 function openPhotoModal() {
+  if (!photoEnabled()) return;
   photoModal.style.display = "flex";
   // A imagem começa a carregar assim que o HTML é lido (antes do módulo rodar),
   // então se ela já falhou antes do "error" abaixo estar escutando, checa aqui.

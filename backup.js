@@ -17,6 +17,9 @@ const path = require("path");
 const PROJECT_ID = "estudos-pessoais-filipe";
 const BASE = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents`;
 const COLLECTIONS = ["study", "standalone-notes", "groups", "people"];
+// Lixeira e configuração geral: se as regras do Firestore ainda não liberam a
+// leitura delas, o backup do resto continua (com aviso no backup.log).
+const OPTIONAL_COLLECTIONS = ["trash", "config"];
 
 // O Firestore devolve os documentos em páginas — segue o nextPageToken até
 // o fim para não perder nada quando houver muitos documentos.
@@ -96,6 +99,10 @@ function ownerOf(t) { return t.owner || "filipe"; }
 async function main() {
   const raw = {};
   for (const name of COLLECTIONS) raw[name] = await fetchCollection(name);
+  for (const name of OPTIONAL_COLLECTIONS) {
+    try { raw[name] = await fetchCollection(name); }
+    catch (err) { log(`AVISO: ${err.message} — backup segue sem essa parte.`); }
+  }
 
   const dateStr = new Date().toISOString().slice(0, 10);
 

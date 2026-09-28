@@ -1285,6 +1285,45 @@ header h1 span { color: var(--blue); }
 .settings-admin-row .settings-toggle-row { width: auto; }
 .settings-admin-name { font-size: 0.88rem; font-weight: 600; }
 
+/* ── Lixeira ────────────────────────────────────────────── */
+.trash-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.trash-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.trash-item-info { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.trash-item-title { font-size: 0.88rem; font-weight: 600; overflow-wrap: anywhere; }
+.trash-item-kind {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--text-muted);
+  margin-right: 4px;
+}
+.trash-item-meta { font-size: 0.76rem; color: var(--text-muted); line-height: 1.35; }
+.trash-item-actions { display: flex; gap: 8px; flex-shrink: 0; }
+.trash-item-actions .btn-ghost { flex: none; padding: 7px 12px; font-size: 0.8rem; }
+.trash-item-actions .trash-purge:hover { color: #e5484d; border-color: #e5484d; }
+
+@media (max-width: 480px) {
+  .trash-item { flex-direction: column; align-items: stretch; }
+  .trash-item-actions .btn-ghost { flex: 1; }
+}
+
 /* ── Coraçãozinho de clique ─────────────────────────────── */
 .click-heart {
   position: fixed;
@@ -1332,6 +1371,10 @@ header h1 span { color: var(--blue); }
 }
 
 .page-heart-signature:hover { opacity: .4; }
+
+/* Foto escondida desativada nas Configurações: o coração fica, só não abre nada. */
+.page-heart-signature.disabled { cursor: default; }
+.page-heart-signature.disabled:hover { opacity: .16; }
 
 .page-heart-signature svg { width: 100%; height: 100%; fill: var(--isabelle-accent); }
 

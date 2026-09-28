@@ -142,6 +142,9 @@
           <button class="person-tab person-tab-utility" data-view="search" aria-label="Pesquisa">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           </button>
+          <button class="person-tab person-tab-utility" data-view="trash" aria-label="Lixeira">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6M9 6V4h6v2"/></svg>
+          </button>
           <button class="person-tab person-tab-utility" data-view="settings" aria-label="Configurações">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
           </button>
@@ -216,6 +219,16 @@
         </div>
       </div>
 
+      <!-- Painel: Lixeira -->
+      <div id="panel-trash" class="panel" style="display:none;">
+        <div class="settings-section">
+          <h2 class="settings-title">Lixeira</h2>
+          <p class="settings-desc">Tudo que for apagado (temas, links, anotações e grupos) vem para cá. Nada some sozinho — dá para restaurar a qualquer momento.</p>
+          <ul id="trash-list" class="trash-list"></ul>
+          <p id="trash-empty" class="settings-desc" style="margin:0;">A lixeira está vazia.</p>
+        </div>
+      </div>
+
       <!-- Painel: Configurações -->
       <div id="panel-settings" class="panel" style="display:none;">
         <div class="settings-section">
@@ -258,6 +271,16 @@
           <label class="settings-volume-row">
             <span class="settings-volume-label">Volume</span>
             <input type="range" id="settings-music-volume" min="0" max="1" step="0.05" />
+          </label>
+        </div>
+
+        <div class="settings-section" id="settings-photo-section" style="display:none;">
+          <h2 class="settings-title">Foto escondida</h2>
+          <p class="settings-desc">A foto que abre ao clicar no coraçãozinho do rodapé. Só administradores mudam isto, e vale para todo mundo.</p>
+          <label class="settings-toggle-row">
+            <input type="checkbox" id="settings-photo-toggle" />
+            <span class="settings-toggle-switch"></span>
+            <span class="settings-toggle-label">Foto escondida ativada</span>
           </label>
         </div>
 
