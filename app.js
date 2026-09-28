@@ -31,10 +31,17 @@ function addedByLabel() {
 // Quem é administrador vem do campo "isAdmin" no perfil de cada um — por
 // padrão (documento antigo, ou campo nunca definido) só o Filipe é admin,
 // mas isso é configurável agora em Configurações > Administração.
-function isAdmin(personId) {
+function hasAdminRole(personId) {
   const explicit = peopleCache[personId]?.isAdmin;
   if (typeof explicit === "boolean") return explicit;
   return personId === "filipe";
+}
+
+// Um admin pode pausar o próprio acesso ("adminPaused") e usar o app como
+// qualquer pessoa. Pausar não tira o cargo — por isso ele mesmo consegue
+// religar depois, em Configurações > Seu acesso de administrador.
+function isAdmin(personId) {
+  return hasAdminRole(personId) && !peopleCache[personId]?.adminPaused;
 }
 
 // Um administrador enxerga e edita o espaço de qualquer pessoa e qualquer
@@ -135,6 +142,8 @@ const settingsAddGroupBtn  = document.getElementById("settings-add-group-btn");
 const settingsAdminSection = document.getElementById("settings-admin-section");
 const settingsAdminList    = document.getElementById("settings-admin-list");
 const settingsPhotoSection = document.getElementById("settings-photo-section");
+const settingsSelfAdminSection = document.getElementById("settings-self-admin-section");
+const settingsSelfAdminToggle  = document.getElementById("settings-self-admin-toggle");
 const settingsPhotoToggle  = document.getElementById("settings-photo-toggle");
 
 // ─── Elementos: criar grupo ─────────────────────────────────────────────────────
@@ -318,9 +327,29 @@ logoutBtn.addEventListener("click", () => {
 // esquecido nos que forem recriados depois.
 personTabsEl.addEventListener("click", (e) => {
   const personBtn = e.target.closest(".person-tab[data-person]");
-  if (personBtn) { setActivePerson(personBtn.dataset.person); return; }
+  if (personBtn) { setMenuOpen(false); setActivePerson(personBtn.dataset.person); return; }
   const viewBtn = e.target.closest(".person-tab[data-view]");
-  if (viewBtn) showUtilityView(viewBtn.dataset.view);
+  if (viewBtn) { setMenuOpen(false); showUtilityView(viewBtn.dataset.view); }
+});
+
+// ─── Menu dos três pontinhos (novo grupo / pesquisa / lixeira / configurações) ─
+const tabsMenuEl     = document.getElementById("tabs-menu");
+const tabsMenuToggle = document.getElementById("tabs-menu-toggle");
+
+function setMenuOpen(open) {
+  tabsMenuEl.classList.toggle("open", open);
+  tabsMenuToggle.setAttribute("aria-expanded", open ? "true" : "false");
+}
+
+tabsMenuToggle.addEventListener("click", (e) => {
+  e.stopPropagation();
+  setMenuOpen(!tabsMenuEl.classList.contains("open"));
+});
+document.addEventListener("click", (e) => {
+  if (tabsMenuEl.classList.contains("open") && !tabsMenuEl.contains(e.target)) setMenuOpen(false);
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && tabsMenuEl.classList.contains("open")) { setMenuOpen(false); tabsMenuToggle.focus(); }
 });
 
 function syncActiveTabs() {
@@ -344,6 +373,7 @@ function setActivePerson(personId) {
   document.documentElement.style.setProperty("--active-accent", resolveAccent(personId));
   syncActiveTabs();
   allUtilityTabBtns().forEach((b) => b.classList.remove("active"));
+  tabsMenuToggle.classList.remove("active");
 
   panelSearch.style.display   = "none";
   panelSettings.style.display = "none";
@@ -376,6 +406,7 @@ function showUtilityView(view) {
 
   allPersonTabBtns().forEach((b) => b.classList.remove("active"));
   allUtilityTabBtns().forEach((b) => b.classList.toggle("active", b.dataset.view === view));
+  tabsMenuToggle.classList.add("active");
 
   readonlyBanner.style.display = "none";
   panelStudy.style.display  = "none";
@@ -595,6 +626,8 @@ function populateSettingsForm() {
   if (isAdmin(currentUser)) renderSettingsGroups();
   settingsPhotoSection.style.display = isAdmin(currentUser) ? "" : "none";
   settingsPhotoToggle.checked = photoEnabled();
+  settingsSelfAdminSection.style.display = hasAdminRole(currentUser) ? "" : "none";
+  settingsSelfAdminToggle.checked = isAdmin(currentUser);
   renderSettingsAdmin();
 }
 
@@ -727,6 +760,12 @@ settingsColorReset.addEventListener("click", async () => {
   catch (err) { console.error("Erro ao restaurar cor padrão:", err); }
 });
 
+settingsSelfAdminToggle.addEventListener("change", async () => {
+  if (!hasAdminRole(currentUser)) return;
+  try { await updateDoc(doc(db, "people", currentUser), { adminPaused: !settingsSelfAdminToggle.checked }); }
+  catch (err) { console.error("Erro ao mudar o modo administrador:", err); }
+});
+
 settingsNotesToggle.addEventListener("change", async () => {
   try { await updateDoc(doc(db, "people", currentUser), { notesEnabled: settingsNotesToggle.checked }); }
   catch (err) { console.error("Erro ao salvar preferência de anotações:", err); }
@@ -763,7 +802,7 @@ function openGroupModal() {
 
 function closeGroupModal() { groupModal.style.display = "none"; }
 
-addGroupBtn.addEventListener("click", openGroupModal);
+addGroupBtn.addEventListener("click", () => { setMenuOpen(false); openGroupModal(); });
 settingsAddGroupBtn.addEventListener("click", openGroupModal);
 groupFormCancel.addEventListener("click", closeGroupModal);
 groupModal.addEventListener("click", (e) => { if (e.target === groupModal) closeGroupModal(); });

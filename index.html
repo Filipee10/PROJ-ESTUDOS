@@ -6,7 +6,7 @@
   <title>Estudos</title>
   <link rel="stylesheet" href="style.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet" />
 </head>
 <body>
 
@@ -136,18 +136,29 @@
             <span class="person-tab-dot"></span> <span class="person-tab-label">Isabelle</span>
           </button>
           <div id="dynamic-group-tabs" style="display:contents;"></div>
-          <button type="button" class="person-tab person-tab-utility" id="add-group-btn" aria-label="Criar grupo">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          </button>
-          <button class="person-tab person-tab-utility" data-view="search" aria-label="Pesquisa">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          </button>
-          <button class="person-tab person-tab-utility" data-view="trash" aria-label="Lixeira">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6M9 6V4h6v2"/></svg>
-          </button>
-          <button class="person-tab person-tab-utility" data-view="settings" aria-label="Configurações">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-          </button>
+          <div class="tabs-menu" id="tabs-menu">
+            <button type="button" class="person-tab tabs-menu-toggle" id="tabs-menu-toggle" aria-label="Mais opções" aria-haspopup="menu" aria-expanded="false">
+              <span class="tabs-menu-dots"><i></i><i></i><i></i></span>
+            </button>
+            <div class="tabs-menu-panel" id="tabs-menu-panel" role="menu">
+              <button type="button" class="person-tab person-tab-utility tabs-menu-item" style="--i:0" role="menuitem" id="add-group-btn" aria-label="Criar grupo">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                <span>Novo grupo</span>
+              </button>
+              <button class="person-tab person-tab-utility tabs-menu-item" style="--i:1" role="menuitem" data-view="search" aria-label="Pesquisa">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <span>Pesquisar</span>
+              </button>
+              <button class="person-tab person-tab-utility tabs-menu-item" style="--i:2" role="menuitem" data-view="trash" aria-label="Lixeira">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6M9 6V4h6v2"/></svg>
+                <span>Lixeira</span>
+              </button>
+              <button class="person-tab person-tab-utility tabs-menu-item" style="--i:3" role="menuitem" data-view="settings" aria-label="Configurações">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                <span>Configurações</span>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -289,6 +300,16 @@
           <p class="settings-desc">Só administradores criam ou gerenciam grupos.</p>
           <div id="settings-groups-list" class="settings-groups-list"></div>
           <button type="button" id="settings-add-group-btn" class="btn-ghost settings-add-group-btn">+ Novo grupo</button>
+        </div>
+
+        <div class="settings-section" id="settings-self-admin-section" style="display:none;">
+          <h2 class="settings-title">Seu acesso de administrador</h2>
+          <p class="settings-desc">Desligado, você usa o app como qualquer pessoa: vê só o seu espaço e os seus grupos, e não apaga nada da lixeira para sempre. Dá para religar aqui quando quiser.</p>
+          <label class="settings-toggle-row">
+            <input type="checkbox" id="settings-self-admin-toggle" />
+            <span class="settings-toggle-switch"></span>
+            <span class="settings-toggle-label">Modo administrador ativo</span>
+          </label>
         </div>
 
         <div class="settings-section settings-admin-section" id="settings-admin-section" style="display:none;">

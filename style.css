@@ -77,19 +77,21 @@ header {
 
 .header-top {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 12px;
   flex-wrap: wrap;
 }
 
 header h1 {
-  font-size: 1.5rem;
-  font-weight: 700;
-  letter-spacing: -0.3px;
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-size: 2.2rem;
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: -0.01em;
 }
 
-header h1 span { color: var(--blue); }
+header h1 span { color: var(--blue); font-style: italic; }
 
 .user-badge {
   display: flex;
@@ -97,7 +99,6 @@ header h1 span { color: var(--blue); }
   gap: 6px;
   font-size: 0.84rem;
   color: var(--text-muted);
-  padding-top: 4px;
   flex-shrink: 0;
 }
 
@@ -201,6 +202,97 @@ header h1 span { color: var(--blue); }
   color: var(--text);
   border-color: var(--border-hover);
   background: var(--border);
+}
+
+/* ── Menu dos três pontinhos ───────────────────────────── */
+.tabs-menu {
+  position: relative;
+  flex: 0 0 auto;
+  display: flex;
+}
+
+.tabs-menu-toggle {
+  flex: 0 0 auto;
+  min-width: 0;
+  padding: 11px 15px;
+}
+
+.tabs-menu-dots {
+  display: flex;
+  gap: 3px;
+  transition: transform .35s cubic-bezier(.34, 1.56, .64, 1);
+}
+.tabs-menu-dots i {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: currentColor;
+  transition: transform .35s cubic-bezier(.34, 1.56, .64, 1);
+}
+
+.tabs-menu-toggle.active { color: var(--text); border-color: var(--border-hover); background: var(--border); }
+.tabs-menu.open .tabs-menu-toggle { color: var(--blue); border-color: var(--blue-dim); background: var(--blue-bg); }
+.tabs-menu.open .tabs-menu-dots { transform: rotate(90deg); }
+.tabs-menu.open .tabs-menu-dots i:nth-child(1) { transform: translateX(-1px); }
+.tabs-menu.open .tabs-menu-dots i:nth-child(3) { transform: translateX(1px); }
+
+.tabs-menu-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 50;
+  min-width: 210px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+  transform-origin: top right;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-6px) scale(.94);
+  transition: opacity .18s ease, transform .25s cubic-bezier(.34, 1.4, .64, 1), visibility 0s linear .25s;
+}
+.tabs-menu.open .tabs-menu-panel {
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+  transition: opacity .18s ease, transform .3s cubic-bezier(.34, 1.4, .64, 1), visibility 0s;
+}
+
+/* Cada opção entra um pouquinho depois da anterior (--i vem do HTML). */
+.tabs-menu-panel .tabs-menu-item {
+  flex: none;
+  width: 100%;
+  min-width: 0;
+  justify-content: flex-start;
+  gap: 12px;
+  padding: 10px 12px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  opacity: 0;
+  transform: translateX(12px);
+  transition: opacity .15s ease, transform .15s ease, background .15s, color .15s;
+}
+.tabs-menu.open .tabs-menu-panel .tabs-menu-item {
+  opacity: 1;
+  transform: none;
+  transition: opacity .25s ease calc(var(--i) * 50ms + 40ms),
+              transform .35s cubic-bezier(.34, 1.56, .64, 1) calc(var(--i) * 50ms + 40ms),
+              background .15s, color .15s;
+}
+.tabs-menu-panel .tabs-menu-item svg { width: 17px; height: 17px; flex-shrink: 0; }
+.tabs-menu-panel .tabs-menu-item:hover { color: var(--text); background: var(--blue-bg); border-color: transparent; }
+.tabs-menu-panel .tabs-menu-item.active { color: var(--blue); background: var(--blue-bg); border-color: transparent; }
+
+@media (prefers-reduced-motion: reduce) {
+  .tabs-menu-panel, .tabs-menu-panel .tabs-menu-item, .tabs-menu-dots, .tabs-menu-dots i { transition: none !important; }
 }
 
 /* ── Banner somente leitura ────────────────────────────── */
@@ -1458,12 +1550,13 @@ header h1 span { color: var(--blue); }
 
 @media (max-width: 480px) {
   body { padding: 20px 12px 80px; }
-  header h1 { font-size: 1.25rem; }
+  header h1 { font-size: 1.8rem; }
 
   .person-tabs { gap: 5px; }
   .person-tab { padding: 10px 6px; font-size: 0.8rem; gap: 4px; }
   .person-tab-utility { padding: 10px 9px; }
   .person-tab-utility svg { width: 16px; height: 16px; }
+  .tabs-menu-toggle { padding: 10px 12px; }
 
   .topic-header { padding: 11px 12px; gap: 8px; }
   .topic-header-actions { gap: 2px; }
