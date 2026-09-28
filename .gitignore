@@ -3,3 +3,5 @@ node_modules/
 # Backups locais (backup.js) — anotações pessoais, não vão pro repositório público.
 /F/
 /I/
+/backup-completo/
+/backup.log

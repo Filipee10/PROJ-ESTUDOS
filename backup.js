@@ -3,26 +3,41 @@
 // legível em Markdown nas pastas F/ (Filipe) e I/ (Isabelle), com a data no
 // nome do arquivo. Assim, se algo sumir do Firestore ou do GitHub, continua
 // salvo aqui também.
+//
+// Além do Markdown, salva uma cópia COMPLETA (todos os campos, todas as
+// coleções) em JSON na pasta backup-completo/ — é essa que serve para
+// restaurar os dados se um dia for preciso.
+//
+// Se qualquer leitura falhar, o backup é abortado sem gravar nada, para
+// nunca substituir um backup bom por um vazio ou pela metade.
 
 const fs = require("fs");
 const path = require("path");
 
 const PROJECT_ID = "estudos-pessoais-filipe";
 const BASE = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents`;
+const COLLECTIONS = ["study", "standalone-notes", "groups", "people"];
 
+// O Firestore devolve os documentos em páginas — segue o nextPageToken até
+// o fim para não perder nada quando houver muitos documentos.
 async function fetchCollection(name) {
-  try {
-    const res = await fetch(`${BASE}/${name}`);
-    if (!res.ok) {
-      console.warn(`Aviso: não consegui ler "${name}" (status ${res.status}) — seguindo sem essa parte.`);
-      return [];
-    }
+  const docs = [];
+  let pageToken = "";
+  do {
+    const url = `${BASE}/${name}?pageSize=300${pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : ""}`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`não consegui ler "${name}" (status ${res.status})`);
     const json = await res.json();
-    return (json.documents || []).map(parseDoc);
-  } catch (err) {
-    console.warn(`Aviso: erro ao ler "${name}":`, err.message);
-    return [];
-  }
+    docs.push(...(json.documents || []));
+    pageToken = json.nextPageToken || "";
+  } while (pageToken);
+  return docs;
+}
+
+function log(msg) {
+  const line = `[${new Date().toISOString()}] ${msg}`;
+  console.log(line);
+  try { fs.appendFileSync(path.join(__dirname, "backup.log"), line + "\n", "utf8"); } catch {}
 }
 
 function parseDoc(doc) {
@@ -79,16 +94,25 @@ function fmtNote(n) {
 function ownerOf(t) { return t.owner || "filipe"; }
 
 async function main() {
-  const [study, notes, groups] = await Promise.all([
-    fetchCollection("study"),
-    fetchCollection("standalone-notes"),
-    fetchCollection("groups"),
-  ]);
+  const raw = {};
+  for (const name of COLLECTIONS) raw[name] = await fetchCollection(name);
+
+  const dateStr = new Date().toISOString().slice(0, 10);
+
+  // Cópia completa e restaurável, no formato original do Firestore.
+  const fullDir = path.join(__dirname, "backup-completo");
+  fs.mkdirSync(fullDir, { recursive: true });
+  const fullPath = path.join(fullDir, `firestore-${dateStr}.json`);
+  fs.writeFileSync(fullPath, JSON.stringify({ project: PROJECT_ID, date: new Date().toISOString(), collections: raw }, null, 2), "utf8");
+  log(`Salvo: ${fullPath}`);
+
+  const study  = raw["study"].map(parseDoc);
+  const notes  = raw["standalone-notes"].map(parseDoc);
+  const groups = raw["groups"].map(parseDoc);
 
   const groupNames = {};
   groups.forEach((g) => { groupNames[g.id] = g.name || g.id; });
 
-  const dateStr = new Date().toISOString().slice(0, 10);
   const folders = { filipe: "F", isabelle: "I" };
   const displayName = { filipe: "Filipe", isabelle: "Isabelle" };
 
@@ -130,11 +154,11 @@ async function main() {
     fs.mkdirSync(dir, { recursive: true });
     const filePath = path.join(dir, `backup-${dateStr}.md`);
     fs.writeFileSync(filePath, parts.join("\n"), "utf8");
-    console.log("Salvo:", filePath);
+    log(`Salvo: ${filePath}`);
   }
 }
 
 main().catch((err) => {
-  console.error("Erro no backup:", err);
+  log(`ERRO no backup (nada foi gravado/substituído): ${err.message}`);
   process.exit(1);
 });
